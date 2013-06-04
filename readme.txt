@@ -34,7 +34,7 @@ Three source code files written in FORTRAN77 need to be compiled:
 
 ram1.5.f             (RAM)
 rams0.5.f            (RAMS)
-ramclr.f               (CODE TO VIEW OUTPUT IN .PS FORM)
+ramclr.f             (CODE TO VIEW OUTPUT IN .PS FORM)
 
 Compiling
 
@@ -42,12 +42,12 @@ Compiling
 typing man f77 or man f90 or man g77)
 
 compiler strings:
-f77 ÐO3 Ðo ram ram1.5.f
-f77 ÐO3 -o rams rams0.5.f
-f77 ÐO3 Ðo ramclr ramclr.f
+f77 -O3 -o ram ram1.5.f
+f77 -O3 -o rams rams0.5.f
+f77 -O3 -o ramclr ramclr.f
 
-The Ðo option names the executable file (the file you invoke when you want to run the code) the 
-name after this flag.  The ÐO3 option optimizes the code to the platform it is
+The -o option names the executable file (the file you invoke when you want to run the code) the 
+name after this flag.  The -O3 option optimizes the code to the platform it is
 being compiled on.  The code can run significantly faster this way.
 
 Output Files (produced by RAM and RAMS): 
