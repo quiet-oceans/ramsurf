@@ -14,14 +14,6 @@
 
 #include "ramsurf.h"
 
-#ifdef __SSE3__
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-#else
-#define _mm_malloc(a,b) malloc(a)
-#define _mm_free(a) free(a)
-#endif
-
 #ifndef max
    #define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 #endif
@@ -544,117 +536,6 @@ void matrc(int const nz, int const np, int const iz, float dz, float k0, float r
         ksq[i][1]=ksqb[ii][1];
     }
     //
-#ifdef __SSE3__
-        //
-        //     Discretization by Galerkin's method.
-        //
-    int ibound = nz/2;
-    for(int i=1; i< ibound; i+=2) {
-        float c1= cfact*f1[i+0]*(f2[i-1]+f2[i])*f3[i-1];
-        float c2=-cfact*f1[i+0]*(f2[i-1]+2.0*f2[i]+f2[i+1])*f3[i];
-        float c3= cfact*f1[i+0]*(f2[i+0]+f2[i+1])*f3[i+1];
-        float c4= cfact*f1[i+1]*(f2[i+0]+f2[i+1])*f3[i+0];
-        float c5=-cfact*f1[i+1]*(f2[i+0]+2.0*f2[i+1]+f2[i+2])*f3[i+1];
-        float c6= cfact*f1[i+1]*(f2[i+1]+f2[i+2])*f3[i+2];
-
-        d1[0]=c1+dfact*(ksq[i-1][0]+ksq[i+0][0]);
-        d1[1]= 0+dfact*(ksq[i-1][1]+ksq[i+0][1]);
-        d1[2]=c4+dfact*(ksq[i+0][0]+ksq[i+1][0]);
-        d1[3]= 0+dfact*(ksq[i+0][1]+ksq[i+1][1]);
-
-        d2[0]=c2+dfact*(ksq[i-1][0]+6.0*ksq[i+0][0]+ksq[i+1][0]);
-        d2[1]= 0+dfact*(ksq[i-1][1]+6.0*ksq[i+0][1]+ksq[i+1][1]);
-        d2[2]=c5+dfact*(ksq[i+0][0]+6.0*ksq[i+1][0]+ksq[i+2][0]);
-        d2[3]= 0+dfact*(ksq[i+0][1]+6.0*ksq[i+1][1]+ksq[i+2][1]);
-
-        d3[0]=c3+dfact*(ksq[i+0][0]+ksq[i+1][0]);
-        d3[1]= 0+dfact*(ksq[i+0][1]+ksq[i+1][1]);
-        d3[2]=c6+dfact*(ksq[i+1][0]+ksq[i+2][0]);
-        d3[3]= 0+dfact*(ksq[i+1][1]+ksq[i+2][1]);
-        //
-        __m128 _a1 = _mm_load_ss(&a1); _a1=_mm_movelh_ps(_a1, _a1);
-        __m128 _a2 = _mm_load_ss(&a2); _a2=_mm_movelh_ps(_a2, _a2);
-        __m128 _a3 = _mm_load_ss(&a3); _a3=_mm_movelh_ps(_a3, _a3);
-        __m128 _d1_imag = _mm_load_ps(&d1[0]);
-        __m128 _d1_real = _mm_moveldup_ps(_d1_imag);
-        _d1_imag = _mm_movehdup_ps(_d1_imag);
-        __m128 _d2_imag = _mm_load_ps(&d2[0]);
-        __m128 _d2_real = _mm_moveldup_ps(_d2_imag);
-        _d2_imag = _mm_movehdup_ps(_d2_imag);
-        __m128 _d3_imag = _mm_load_ps(&d3[0]);
-        __m128 _d3_real = _mm_moveldup_ps(_d3_imag);
-        _d3_imag = _mm_movehdup_ps(_d3_imag);
-        __m128 xmm0, xmm1;
-        for(int j=0;j<np;j++) {
-            __m128 _pd1 = _mm_loadu_ps(&pd1[j][0]);
-            _pd1 = _mm_movelh_ps(_pd1,_pd1);
-            __m128 _pd1_shuf = _mm_shuffle_ps(_pd1,_pd1,_MM_SHUFFLE(2,3,0,1));
-            __m128 _pd2 = _mm_loadu_ps(&pd2[j][0]);
-            _pd2 = _mm_movelh_ps(_pd2,_pd2);
-            __m128 _pd2_shuf = _mm_shuffle_ps(_pd2,_pd2,_MM_SHUFFLE(2,3,0,1));
-
-            xmm0 = _mm_mul_ps(_pd1, _d1_real);
-            xmm1 = _mm_mul_ps(_pd1_shuf, _d1_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a1);
-            _mm_store_ps(&s1[j][i+0][0], xmm0);
-            xmm0 = _mm_mul_ps(_pd2, _d1_real);
-            xmm1 = _mm_mul_ps(_pd2_shuf, _d1_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a1);
-            _mm_storeu_ps(&r1[j][i+0][0], xmm0);
-
-            xmm0 = _mm_mul_ps(_pd1, _d2_real);
-            xmm1 = _mm_mul_ps(_pd1_shuf, _d2_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a2);
-            _mm_store_ps(&s2[j][i+0][0], xmm0);
-            xmm0 = _mm_mul_ps(_pd2, _d2_real);
-            xmm1 = _mm_mul_ps(_pd2_shuf, _d2_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a2);
-            _mm_storeu_ps(&r2[j][i+0][0], xmm0);
-
-
-            xmm0 = _mm_mul_ps(_pd1, _d3_real);
-            xmm1 = _mm_mul_ps(_pd1_shuf, _d3_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a3);
-            _mm_store_ps(&s3[j][i+0][0], xmm0);
-            xmm0 = _mm_mul_ps(_pd2, _d3_real);
-            xmm1 = _mm_mul_ps(_pd2_shuf, _d3_imag);
-            xmm0 = _mm_addsub_ps(xmm0, xmm1);
-            xmm0 = _mm_add_ps(xmm0, _a3);
-            _mm_storeu_ps(&r3[j][i+0][0], xmm0);
-        }
-    }
-    for(int i=ibound; i< nz+1; i++) {
-        float c1=cfact*f1[i]*(f2[i-1]+f2[i])*f3[i-1];
-        float c2=-cfact*f1[i]*(f2[i-1]+2.0*f2[i]+f2[i+1])*f3[i];
-        float c3=cfact*f1[i]*(f2[i]+f2[i+1])*f3[i+1];
-        d1[0]=c1+dfact*(ksq[i-1][0]+ksq[i][0]);
-        d1[1]=dfact*(ksq[i-1][1]+ksq[i][1]);
-        d2[0]=c2+dfact*(ksq[i-1][0]+6.0*ksq[i][0]+ksq[i+1][0]);
-        d2[1]=dfact*(ksq[i-1][1]+6.0*ksq[i][1]+ksq[i+1][1]);
-        d3[0]=c3+dfact*(ksq[i][0]+ksq[i+1][0]);
-        d3[1]=dfact*(ksq[i][1]+ksq[i+1][1]);
-        //
-        for(int j=0;j<np;j++) {
-            r1[j][i][0]=a1+pd2[j][0]*d1[0]-pd2[j][1]*d1[1];
-            r1[j][i][1]= 0+pd2[j][1]*d1[0]+pd2[j][0]*d1[1];
-            s1[j][i][0]=a1+pd1[j][0]*d1[0]-pd1[j][1]*d1[1];
-            s1[j][i][1]= 0+pd1[j][1]*d1[0]+pd1[j][0]*d1[1];
-            r2[j][i][0]=a2+pd2[j][0]*d2[0]-pd2[j][1]*d2[1];
-            r2[j][i][1]= 0+pd2[j][1]*d2[0]+pd2[j][0]*d2[1];
-            s2[j][i][0]=a2+pd1[j][0]*d2[0]-pd1[j][1]*d2[1];
-            s2[j][i][1]= 0+pd1[j][1]*d2[0]+pd1[j][0]*d2[1];
-            r3[j][i][0]=a3+pd2[j][0]*d3[0]-pd2[j][1]*d3[1];
-            r3[j][i][1]= 0+pd2[j][1]*d3[0]+pd2[j][0]*d3[1];
-            s3[j][i][0]=a3+pd1[j][0]*d3[0]-pd1[j][1]*d3[1];
-            s3[j][i][1]= 0+pd1[j][1]*d3[0]+pd1[j][0]*d3[1];
-        }
-    }
-#else
     for(int i=1; i< nz+1; i++) {
         //
         //     Discretization by Galerkin's method.
@@ -684,7 +565,6 @@ void matrc(int const nz, int const np, int const iz, float dz, float k0, float r
             s3[j][i][1]= 0+pd1[j][1]*d3[0]+pd1[j][0]*d3[1];
         }
     }
-#endif
     //
     //     The entries above the surface.
     //
@@ -822,79 +702,6 @@ void  outpt( FILE* fs2, FILE* fs3, int *mdr, int ndr, int ndz, int nzplt, int lz
     }
     //
 }
-#ifdef __SSE3__
-//
-//     The tridiagonal solver.
-//
-static
-void solve(int nz, int const np, float u[mz][2], 
-        fcomplex r1[mp][mz], fcomplex r3[mp][mz],
-        float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2]) {
-    float v[nz][2] __attribute__((aligned(16)));
-    for(int j=0; j<np; j++) {
-        float *R1 = (float*) r1[j];
-        float *R3 = (float*) r3[j];
-        const int bound = nz/2;
-
-        for(int i=1; i< bound; i+=2) {
-            __m128 _s1_imag = _mm_load_ps(&s1[j][i][0]);
-            __m128 _s1_real = _mm_moveldup_ps(_s1_imag);
-            _s1_imag = _mm_movehdup_ps(_s1_imag);
-
-            __m128 _u_m1 = _mm_load_ps(&u[i-1][0]);
-            __m128 _u_m1_shuf = _mm_shuffle_ps(_u_m1,_u_m1, _MM_SHUFFLE(2,3,0,1));
-            __m128 _u_p1 = _mm_load_ps(&u[i+1][0]);
-            __m128 _u_p1_shuf = _mm_shuffle_ps(_u_p1,_u_p1, _MM_SHUFFLE(2,3,0,1));
-
-            __m128 xmm0 = _mm_mul_ps(_s1_real, _u_m1);
-            __m128 _tmp1 = _mm_mul_ps(_s1_imag, _u_m1_shuf);
-            xmm0=_mm_addsub_ps(xmm0, _tmp1);
-
-            //
-            _s1_imag = _mm_load_ps(&s2[j][i][0]);
-            _s1_real = _mm_moveldup_ps(_s1_imag);
-            _s1_imag = _mm_movehdup_ps(_s1_imag);
-            _u_m1 = _mm_shuffle_ps(_u_m1, _u_p1,  _MM_SHUFFLE(1,0,3,2));
-            _u_m1_shuf = _mm_shuffle_ps(_u_m1,_u_m1, _MM_SHUFFLE(2,3,0,1));
-
-            _s1_real = _mm_mul_ps(_s1_real, _u_m1);
-            _tmp1 = _mm_mul_ps(_s1_imag, _u_m1_shuf);
-            _s1_real=_mm_addsub_ps(_s1_real, _tmp1);
-            xmm0 = _mm_add_ps(xmm0, _s1_real);
-
-            //
-            _s1_imag = _mm_load_ps(&s3[j][i][0]);
-            _s1_real = _mm_moveldup_ps(_s1_imag);
-            _s1_imag = _mm_movehdup_ps(_s1_imag);
-
-            _s1_real = _mm_mul_ps(_s1_real, _u_p1);
-            _tmp1 = _mm_mul_ps(_s1_imag, _u_p1_shuf);
-            _s1_real=_mm_addsub_ps(_s1_real, _tmp1);
-            xmm0 = _mm_add_ps(xmm0, _s1_real);
-
-            //
-            _mm_store_ps(&v[i-1][0], xmm0);
-
-        }
-        for(int i=bound; i< nz+1; i++) {
-            v[i-1][0] = s1[j][i][0]*u[i-1][0]-s1[j][i][1]*u[i-1][1] + s2[j][i][0]*u[i][0] - s2[j][i][1]*u[i][1] + s3[j][i][0]*u[i+1][0] - s3[j][i][1]*u[i+1][1];
-            v[i-1][1] = s1[j][i][0]*u[i-1][1]+s1[j][i][1]*u[i-1][0] + s2[j][i][0]*u[i][1] + s2[j][i][1]*u[i][0] + s3[j][i][0]*u[i+1][1] + s3[j][i][1]*u[i+1][0];
-        }
-        //
-        for(int i=2;i<nz+1; i++) {
-            v[i-1][0]-=R1[2*i]*v[i-1-1][0] - R1[2*i+1]*v[i-1-1][1];
-            v[i-1][1]-=R1[2*i]*v[i-1-1][1] + R1[2*i+1]*v[i-1-1][0];
-        }
-        //
-        for(int i=nz; i>=1; i--) {
-            u[i][0] = v[i-1][0] - (R3[2*i] * u[i+1][0] - R3[2*i+1] * u[i+1][1]);
-            u[i][1] = v[i-1][1] - (R3[2*i] * u[i+1][1] + R3[2*i+1] * u[i+1][0]);
-        }
-        //
-    }
-    //
-}
-#else
 
 //
 //     The tridiagonal solver.
@@ -925,7 +732,6 @@ void solve(int nz, int const np, float u[mz][2],
     }
     //
 }
-#endif
 
 //
 //     The self-starter.
@@ -1130,10 +936,10 @@ int ramsurf(char const* input, char const* resultat, char const* output) {
     f3 = (float (*)[mz]) malloc(sizeof(float)*mz);
     tlg = (float (*)[mz]) malloc(sizeof(float)*mz);
     attw = (float (*)[mz]) malloc(sizeof(float)*mz);
-    u = (float (*)[mz][2]) _mm_malloc(sizeof(float)*mz*2,32);
-    s1 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)_mm_malloc(sizeof(float)*mp*mz*2,32));
-    s2 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)_mm_malloc(sizeof(float)*mp*mz*2,32));
-    s3 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)_mm_malloc(sizeof(float)*mp*mz*2,32));
+    u = (float (*)[mz][2]) malloc(sizeof(float)*mz*2);
+    s1 = (float (*)[mp][mz][2]) malloc(sizeof(float)*mp*mz*2);
+    s2 = (float (*)[mp][mz][2]) malloc(sizeof(float)*mp*mz*2);
+    s3 = (float (*)[mp][mz][2]) malloc(sizeof(float)*mp*mz*2);
 
     int nz,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,izsrf,isrf;
     float eta, eps, omega, rmax, r, rp, rs, dr, dz, c0, dir;
@@ -1187,10 +993,10 @@ int ramsurf(char const* input, char const* resultat, char const* output) {
     free(f3);
     free(tlg);
     free(attw);
-    _mm_free(u) ;
-    _mm_free((char*)s1-2*sizeof(float));
-    _mm_free((char*)s2-2*sizeof(float));
-    _mm_free((char*)s3-2*sizeof(float));
+    free(u) ;
+    free(s1);
+    free(s2);
+    free(s3);
 
     return errorCode;
 }
