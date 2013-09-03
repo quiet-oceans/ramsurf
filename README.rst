@@ -24,9 +24,21 @@ Simply run `make` from the top directory, eventually passing additionnal options
     make FCFLAGS=-Ofast FC=gfortran
 
 GNU make is assumed.
+
+To turn on the vectorized C code, run::
+
+    make CFLAGS="-O2 -march=native"
+
+Testing
+-------
+
+Compare the output produced by the FORTRAN code and the C code using::
+
+    make check
     
 Usage
 -----
 
+The C version mimics the FORTRAN interface.
 Refer to the original documentation in `readme.orig`.
 
