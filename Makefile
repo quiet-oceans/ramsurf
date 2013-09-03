@@ -26,7 +26,7 @@ dist: clean Makefile $(SOURCES) $(EXTRA_DIST)
 	tar czf $(DIST_NAME).tar.gz $(DIST_NAME)
 
 check: all
-	for d in tests/flat* ; do \
+	for d in `find tests -mindepth 1 -type d` ; do \
 		cd $$d ; \
 		../../ramsurf1.5 ;\
 		mv tl.grid ref.grid ;\

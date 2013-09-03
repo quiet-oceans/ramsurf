@@ -1,0 +1,65 @@
+header line
+2048.000000	4.000000	1.0	frequency (Hz), source depth (m), tl.line depth (m)
+89882.679	7.324219	47	domain range (m), computation step (m), mesure step (comp.step)
+159.935455	0.244141	14	111.107338	domain depth (m), computation step (m), mesure step (comp.step), last mesure depth (m)
+1500.000000	4	1	0.000000	reference celerity, #PADE, #stability constraints, radius of constraint
+0.0	0.0	surface depth (range, depth) (m)
+-1	-1
+   0.0000     0.		bathymetry
+ 185.3645    20.		bathymetry
+ 370.7289    40.		bathymetry
+ 556.0934    60.		bathymetry
+ 741.4579    80.		bathymetry
+ 926.8224   100.		bathymetry
+1112.0171   120.		bathymetry
+1297.2119   140.		bathymetry
+1482.4067   160.		bathymetry
+1667.6016   180.		bathymetry
+1852.7964   200.		bathymetry
+2038.1608   220.		bathymetry
+2223.5254   240.		bathymetry
+2408.8896   260.		bathymetry
+2594.2542   280.		bathymetry
+2779.6187   300.		bathymetry
+2964.9829   320.		bathymetry
+3150.3477   340.		bathymetry
+3335.7119   360.		bathymetry
+3521.0767   380.		bathymetry
+3706.4409   400.		bathymetry
+3891.8057   420.		bathymetry
+4077.1699   440.		bathymetry
+4262.5347   460.		bathymetry
+4447.8989   480.		bathymetry
+4633.2637   500.		bathymetry
+4818.6279   520.		bathymetry
+5003.9927   540.		bathymetry
+5189.3569   560.		bathymetry
+5374.7217   580.		bathymetry
+5560.0859   600.		bathymetry
+5745.2808   620.		bathymetry
+5930.4756   640.		bathymetry
+6115.6704   660.		bathymetry
+6300.8647   680.		bathymetry
+-1	-1
+   0.0000	1500.6497
+  10.0000	1500.7407
+  20.0000	1500.7616
+  30.0000	1500.6823
+  50.0000	1499.9233
+  75.0000	1498.7489
+ 100.0000	1497.1975
+ 125.0000	1497.5321
+ 150.0000	1499.8458
+-1	-1
+0	0.0356346	surface windy effect
+2.0001049	0.0001260	RMS wave effect wears off
+5	0.0001260	water attenuation continues
+-1	-1
+0.0000000	3000.0000000
+-1	-1
+0.0000000	2.0999999
+-1	-1
+0.0000000	0.9000000
+18	0.9000000
+21	100.0000000
+-1	-1
