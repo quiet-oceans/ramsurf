@@ -18,7 +18,7 @@ all:$(TARGETS)
 
 clean:
 	rm -rf *.o $(TARGETS) $(DIST_NAME) $(DIST_NAME).tar.gz
-	find -name 'tl.*' -delete
+	find -name 'tl.*' -o -name ref.grid -delete
 
 dist: clean Makefile $(SOURCES) $(EXTRA_DIST)
 	mkdir $(DIST_NAME)
