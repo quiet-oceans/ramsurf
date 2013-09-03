@@ -12,7 +12,7 @@ override LDFLAGS+= -fPIC
 LDLIBS=-lm
 
 EXTRA_DIST= readme.orig README.rst tests
-DIST_NAME=ram
+DIST_NAME=ramsurf
 
 all:$(TARGETS)
 
