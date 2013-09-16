@@ -11,7 +11,7 @@ override CFLAGS+= -std=c99
 override LDFLAGS+= -fPIC
 LDLIBS=-lm
 
-EXTRA_DIST= readme.orig README.rst tests
+EXTRA_DIST= ramsurf.h readme.orig README.rst tests Makefile
 DIST_NAME=ramsurf
 
 all:$(TARGETS)
