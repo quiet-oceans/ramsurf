@@ -7,12 +7,6 @@ extern "C" {
 
 enum ERRCODE{
     PARSE_ERROR=1,
-    //mz need to be increase
-    INC_MZ,
-    //mp need to be increase
-    INC_MP,
-    //mr need to be increase
-    INC_MR,
     //laguerre is not converging
     LAG_NOT_CON
 };

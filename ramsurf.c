@@ -58,9 +58,6 @@
    #define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
-static const size_t mr = 40000;
-static const size_t mz = 50002;
-static const size_t mp = 10;
 static const size_t m = 40;
 static const size_t BUFSIZE = 1024;
 
@@ -76,9 +73,9 @@ static jmp_buf exception_env;
 static
 void guerre(double a[m][2], int n, double z[2], double err, int const nter) {
     double az[50][2],azz[50][2],dz[2],p[2],pz[2],pzz[2],f[2],g[2],h[2];
-    double amp1,amp2,rn,eps,tmp;
-    eps=1.0e-20;
-    rn=(double)n;
+    double tmp;
+    const double eps=1.0e-20;
+    const double rn=n;
 
 
     //
@@ -135,8 +132,8 @@ void guerre(double a[m][2], int n, double z[2], double err, int const nter) {
         h[1]=cimag(H);
         double fph[2] = { f[0] + h[0], f[1] + h[1] };
         double fmh[2] = { f[0] - h[0], f[1] - h[1] };
-        amp1=fph[0]*fph[0] + fph[1]*fph[1];
-        amp2=fmh[0]*fmh[0] + fmh[1]*fmh[1];
+        double amp1=fph[0]*fph[0] + fph[1]*fph[1];
+        double amp2=fmh[0]*fmh[0] + fmh[1]*fmh[1];
         if(amp1>amp2) {
             dz[0]=-rn*fph[0]/amp1;
             dz[1]=+rn*fph[1]/amp1;
@@ -174,7 +171,6 @@ void guerre(double a[m][2], int n, double z[2], double err, int const nter) {
 static
 void fndrt(double a[m][2], int n, double z[m][2]) {
     double root[2];
-    double err;
     //
     if(n==1) {
         double norm = a[1][0]*a[1][0] +  a[1][1]*a[1][1];
@@ -189,13 +185,11 @@ void fndrt(double a[m][2], int n, double z[m][2]) {
             //     Obtain an approximate root.
             //
             root[0]=root[1]=0.;
-            err=1.0e-12;
-            guerre(a,k,root,err,1000);
+            guerre(a,k,root, 1.0e-12, 1000);
             //
             //     Refine the root by iterating five more times.
             //
-            err=0.0;
-            guerre(a,k,root,err,5);
+            guerre(a,k,root,0.,5);
             z[k-1][0]=root[0];
             z[k-1][1]=root[1];
             //
@@ -358,7 +352,7 @@ void deriv(int n, float sig, double alp,
 //     The coefficients of the rational approximation.
 //
 static
-void epade(int np, int ns, int const ip, float k0, float dr,  float pd1[mp][2],  float pd2[mp][2]) {
+void epade(size_t mp, int np, int ns, int const ip, float k0, float dr,  float pd1[mp][2],  float pd2[mp][2]) {
     //
     double dg[m][2],dh1[m][2],dh2[m][2],dh3[m][2],a[m][m][2],b[m][2];
     double  z1, bin[m][m],fact[m];
@@ -478,7 +472,7 @@ void epade(int np, int ns, int const ip, float k0, float dr,  float pd1[mp][2], 
 //     Profile reader and interpolator.
 //
 static
-void zread( FILE* fs1, int nz, float dz, float prof[mz]) {
+void zread( FILE* fs1, size_t mz, int nz, float dz, float prof[mz]) {
     char tmp[BUFSIZE];
     //
     for(int i=0;i<nz+2;i++)
@@ -520,14 +514,15 @@ void zread( FILE* fs1, int nz, float dz, float prof[mz]) {
 //
 static
 void profl( FILE* fs1,
-        int nz, float dz, float eta, float omega, float rmax, float c0, float k0, float *rp, float cw[mz], float cb[mz], float rhob[mz],
+        size_t mz, int nz, float dz, float omega, float rmax, float c0, float k0, float *rp, float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz], float ksqw[mz][2], float ksqb[mz][2], float attw[mz]) {
     //
-    zread(fs1, nz,dz,cw);
-    zread(fs1, nz,dz,attw);
-    zread(fs1, nz,dz,cb);
-    zread(fs1, nz,dz,rhob);
-    zread(fs1, nz,dz,attn);
+    const float eta=1.0/(40.0*M_PI*log10(exp(1.0)));
+    zread(fs1, mz, nz,dz,cw);
+    zread(fs1, mz, nz,dz,attw);
+    zread(fs1, mz, nz,dz,cb);
+    zread(fs1, mz, nz,dz,rhob);
+    zread(fs1, mz, nz,dz,attn);
     *rp=2.0*rmax;
     fscanf(fs1,"%f",rp);
     //
@@ -549,7 +544,7 @@ void profl( FILE* fs1,
 //     The tridiagonal matrices.
 //
 static
-void matrc(int const nz, int const np, int const iz, float dz, float k0, float rhob[mz], float alpw[mz], float alpb[mz], float ksq[mz][2], float ksqw[mz][2], 
+void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float dz, float k0, float rhob[mz], float alpw[mz], float alpb[mz], float ksq[mz][2], float ksqw[mz][2], 
         float ksqb[mz][2], float f1[mz], float f2[mz], float f3[mz],
         float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
@@ -775,8 +770,8 @@ void matrc(int const nz, int const np, int const iz, float dz, float k0, float r
 //     Matrix updates.
 //
 static
-void updat( FILE* fs1, int nz, int np, int *iz, int *ib,
-        float dr, float dz, float eta, float omega, float rmax, float c0, float k0, 
+void updat( FILE* fs1, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
+        float dr, float dz, float omega, float rmax, float c0, float k0, 
         float r, float *rp, float rs,
         float rb[mr], float zb[mr] , float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz],
@@ -803,15 +798,15 @@ void updat( FILE* fs1, int nz, int np, int *iz, int *ib,
     *iz=max(2,*iz);
     *iz=min(nz,*iz);
     if((*iz!=jz) || (*izsrf != jzsrf))
-        matrc(nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
     //     Varying profiles.
     //
     if(r>=*rp){
-        profl(fs1, nz, dz, eta, omega, rmax, c0, k0, rp, cw, cb, rhob, attn, 
+        profl(fs1, mz, nz, dz, omega, rmax, c0, k0, rp, cw, cb, rhob, attn, 
                 alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
-        matrc(nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
@@ -819,8 +814,8 @@ void updat( FILE* fs1, int nz, int np, int *iz, int *ib,
     //
     if(r>=rs) {
         int ns=0;
-        epade(np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
-        matrc(nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        epade(mp, np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
@@ -830,8 +825,9 @@ void updat( FILE* fs1, int nz, int np, int *iz, int *ib,
 //     Output transmission loss.
 //
 static
-void  outpt( FILE* fs2, FILE* fs3, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float eps, float r,
+void  outpt( FILE* fs2, FILE* fs3, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
         float f3[mz], float u[mz][2], float tlg[mz]) {
+    const float eps=1.0e-20;
     fcomplex ur;
     //
     ur=(1.0f-dir)*(f3[ir-1]*(u[ir-1][0]+I*u[ir-1][1]))+dir*f3[ir]*(u[ir][0]+I*u[ir][1]);
@@ -861,7 +857,7 @@ void  outpt( FILE* fs2, FILE* fs3, int *mdr, int ndr, int ndz, int nzplt, int lz
 //     The tridiagonal solver.
 //
 static
-void solve(int nz, int const np, float u[mz][2], 
+void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2], 
         fcomplex r1[mp][mz], fcomplex r3[mp][mz],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2]) {
     float v[nz][2] __attribute__((aligned(16)));
@@ -934,7 +930,7 @@ void solve(int nz, int const np, float u[mz][2],
 //     The tridiagonal solver.
 //
 static
-void solve(int nz, int const np, float u[mz][2], 
+void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2], 
         fcomplex r1[mp][mz], fcomplex r3[mp][mz],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2]) {
     float v[nz][2];
@@ -965,7 +961,7 @@ void solve(int nz, int const np, float u[mz][2],
 //     The self-starter.
 //
 static
-void selfs(int nz, int np, int ns, int iz, float zs, float dr, float dz, float k0, float rhob[mz], float alpw[mz], 
+void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float dr, float dz, float k0, float rhob[mz], float alpw[mz], 
         float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
         float f1[mz], float f2[mz], float f3[mz], float u[mz][2], 
         fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
@@ -987,17 +983,17 @@ void selfs(int nz, int np, int ns, int iz, float zs, float dr, float dz, float k
     //
     pd1[0]=0.0;
     pd2[0]=-1.0;
-    matrc(nz, 1, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    matrc(mz, mp, nz, 1, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
             f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
-    solve( nz, 1, u, r1, r3, s1, s2, s3);
-    solve( nz, 1, u, r1, r3, s1, s2, s3);
+    solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
+    solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
     //
-    //     Apply the operator [1-X]**2*[1+X]**[-1/4]*exp[ci*k0*r*sqrt[1+X]].
+    //     Apply the operator [1-X]**2*[1+X]**[-1/4]*exp[I*k0*r*sqrt[1+X]].
     //
-    epade(np,ns,2,k0,dr,(float (*)[2])pd1,(float (*)[2])pd2);
-    matrc(nz, np, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    epade(mp, np,ns,2,k0,dr,(float (*)[2])pd1,(float (*)[2])pd2);
+    matrc(mz, mp, nz, np, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
             f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
-    solve( nz, np, u, r1, r3, s1, s2, s3);
+    solve(mz, mp, nz, np, u, r1, r3, s1, s2, s3);
     //
 }
 
@@ -1007,10 +1003,11 @@ void selfs(int nz, int np, int ns, int iz, float zs, float dr, float dz, float k
 //
 static
 void setup( FILE* fs1, FILE* fs2, FILE* fs3,
+        size_t mr, size_t mz, size_t mp,
         int *nz, int *np, int *ns, int *mdr, int *ndr, int *ndz, int *iz,
         int *nzplt, int *lz, int *ib, int *ir,
-        float *dir, float *dr, float *dz, float *eta, float *eps, float *omega, float *rmax,
-        float *c0, float *k0, fcomplex *ci, float *r, float *rp, float *rs, float rb[mr], float zb[mr], float cw[mz], float cb[mz], float rhob[mz],
+        float *dir, float *dr, float *dz, float *omega, float *rmax,
+        float *c0, float *k0, float *r, float *rp, float *rs, float rb[mr], float zb[mr], float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
         float f1[mz], float f2[mz], float f3[mz],
         float u[mz][2], 
@@ -1055,9 +1052,6 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
     rb[i]=2.0*(*rmax);
     zb[i]=zb[i-1];
     //
-    *ci=I;
-    *eta=1.0/(40.0*M_PI*log10(exp(1.0)));
-    *eps=1.0e-20;
     *ib=1;
     *isrf=1;
     *mdr=0;
@@ -1079,19 +1073,6 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
     *iz=min(*nz,*iz);
     if(*rs < *dr){*rs=2.0*(*rmax);}
     //
-    if(*nz+2>mz) {
-        //std::cerr <<  "Need to increase parameter mz to " << nz+2 << std::endl;
-        longjmp(exception_env,INC_MZ);
-    }
-    if(*np>mp) {
-        //std::cerr <<  "Need to increase parameter mp to " << np << std::endl;
-        longjmp(exception_env,INC_MP);
-    }
-    if(i>mr) {
-        //std::cerr <<  "Need to increase parameter mr to " << i << std::endl;
-        longjmp(exception_env,INC_MR);
-    }
-    //
     for(int j=0;j<mp; j++) {
         r3[j][0]=0.0;
         r1[j][*nz+1]=0.0;
@@ -1112,73 +1093,113 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
     //
     //     The initial profiles and starting field.
     //
-    profl(fs1, *nz, *dz, *eta, *omega, *rmax, *c0, *k0, rp, cw, cb, rhob, attn, 
+    profl(fs1, mz, *nz, *dz, *omega, *rmax, *c0, *k0, rp, cw, cb, rhob, attn, 
             alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
-    selfs(*nz, *np, *ns, *iz, zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
+    selfs(mz, mp, *nz, *np, *ns, *iz, zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
-    outpt(fs2,  fs3,  mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *eps, *r, f3, u, tlg);
+    outpt(fs2,  fs3,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
     //
     //     The propagation matrices.
     //
-    epade(*np, *ns, 1, *k0, *dr, (float (*)[2])pd1, (float (*)[2])pd2);
-    matrc(*nz, *np, *iz, *dz, *k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    epade(mp, *np, *ns, 1, *k0, *dr, (float (*)[2])pd1, (float (*)[2])pd2);
+    matrc(mz, mp, *nz, *np, *iz, *dz, *k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
             f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
 }
+static
+void read_dimensions( FILE* fs1, size_t *mr, size_t *mz, size_t *mp)
+{
 
-int ramsurf(char const* input, char const* resultat, char const* output) {
-    FILE* fs1 = fopen(input,"r");
-    FILE* fs2 = fopen(output,"w+");
-    FILE* fs3 = fopen(resultat,"w+");
-    fcomplex ci, (*ksq)[mz], (*ksqb)[mz], (*r1)[mp][mz], (*r2)[mp][mz], 
-            (*r3)[mp][mz],  (*pd1)[mp], (*pd2)[mp], 
-            (*ksqw)[mz];
-    float (*u)[mz][2], (*s1)[mp][mz][2], (*s2)[mp][mz][2], (*s3)[mp][mz][2];
-    float k0, (*rb)[mr], (*zb)[mr], (*cw)[mz], (*cb)[mz], (*rhob)[mz], (*attn)[mz], (*alpw)[mz], 
-          (*alpb)[mz], (*f1)[mz], (*f2)[mz], (*f3)[mz], (*tlg)[mz], (*rsrf)[mr], 
-          (*zsrf)[mr], (*attw)[mz];
+    float freq, zs,zr,zmax,zmplt;
+    float rmax, dr, dz, c0, rs;
+    int ndr, ndz, np, ns;
+
+    char tmp[BUFSIZE];
+    //
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %f",&freq,&zs,&zr);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %d",&rmax,&dr,&ndr);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %d %f",&zmax,&dz,&ndz,&zmplt);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %d %d %f",&c0,&np,&ns,&rs);
+    fgets(tmp,BUFSIZE,fs1);
+    //
+    int i=0;
+    float rsrf, zsrf;
+    while(1) {
+        if (fscanf(fs1,"%f %f",&rsrf,&zsrf)!=2)
+    	    longjmp(exception_env,PARSE_ERROR);
+        fgets(tmp,BUFSIZE,fs1);
+        if( rsrf < 0.0) break;
+        i=i+1;
+    }
+
+    //
+    float rb, zb;
+    int j=0;
+    while(1) {
+        if (fscanf(fs1,"%f %f",&rb,&zb)!=2)
+            longjmp(exception_env,PARSE_ERROR);
+        fgets(tmp,BUFSIZE,fs1);
+        if( rb < 0.0) break;
+        j=j+1;
+    }
+
+    //
+    *mr = 1 + max(i,j);
+    *mz = zmax/dz + 1.5;
+    *mp = np;
+    rewind(fs1);
+}
+
+static
+int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
+{
+    float k0;
     int errorCode;
 
     // allocation step 
-    
-    ksq = (fcomplex (*)[mz]) malloc(sizeof(fcomplex)*mz);
-    ksqb = (fcomplex (*)[mz]) malloc(sizeof(fcomplex)*mz);
-    ksqw = (fcomplex (*)[mz]) malloc(sizeof(fcomplex)*mz);
-    r1 = (fcomplex (*)[mp][mz]) malloc(sizeof(fcomplex)*mz*mp);
-    r2 = (fcomplex (*)[mp][mz]) malloc(sizeof(fcomplex)*mz*mp);
-    r3 = (fcomplex (*)[mp][mz]) malloc(sizeof(fcomplex)*mz*mp);
-    pd1 = (fcomplex (*)[mp]) malloc(sizeof(fcomplex)*mp);
-    pd2 = (fcomplex (*)[mp]) malloc(sizeof(fcomplex)*mp);
-    rb = (float (*)[mr]) malloc(sizeof(float)*mr);
-    zb = (float (*)[mr]) malloc(sizeof(float)*mr);
-    rsrf = (float (*)[mr]) malloc(sizeof(float)*mr);
-    zsrf = (float (*)[mr]) malloc(sizeof(float)*mr);
-    cw = (float (*)[mz]) malloc(sizeof(float)*mz);
-    cb = (float (*)[mz]) malloc(sizeof(float)*mz);
-    rhob = (float (*)[mz]) malloc(sizeof(float)*mz);
-    attn = (float (*)[mz]) malloc(sizeof(float)*mz);
-    alpw = (float (*)[mz]) malloc(sizeof(float)*mz);
-    alpb = (float (*)[mz]) malloc(sizeof(float)*mz);
-    f1 = (float (*)[mz]) malloc(sizeof(float)*mz);
-    f2 = (float (*)[mz]) malloc(sizeof(float)*mz);
-    f3 = (float (*)[mz]) malloc(sizeof(float)*mz);
-    tlg = (float (*)[mz]) malloc(sizeof(float)*mz);
-    attw = (float (*)[mz]) malloc(sizeof(float)*mz);
-    u = (float (*)[mz][2]) malloc(sizeof(float)*mz*2);
+
+    fcomplex (*ksq)[mz] =  malloc(sizeof(fcomplex)*mz);
+    fcomplex (*ksqb)[mz] =  malloc(sizeof(fcomplex)*mz);
+    fcomplex (*ksqw)[mz] =  malloc(sizeof(fcomplex)*mz);
+    fcomplex (*r1)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
+    fcomplex (*r2)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
+    fcomplex (*r3)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
+    fcomplex (*pd1)[mp]=  malloc(sizeof(fcomplex)*mp);
+    fcomplex (*pd2)[mp]=  malloc(sizeof(fcomplex)*mp);
+    float (*rb)[mr]=  malloc(sizeof(float)*mr);
+    float (*zb)[mr]=  malloc(sizeof(float)*mr);
+    float (*rsrf)[mr]=  malloc(sizeof(float)*mr);
+    float (*zsrf)[mr]=  malloc(sizeof(float)*mr);
+    float (*cw)[mz]=  malloc(sizeof(float)*mz);
+    float (*cb)[mz]=  malloc(sizeof(float)*mz);
+    float (*rhob)[mz]=  malloc(sizeof(float)*mz);
+    float (*attn)[mz]=  malloc(sizeof(float)*mz);
+    float (*alpw)[mz]=  malloc(sizeof(float)*mz);
+    float (*alpb)[mz]=  malloc(sizeof(float)*mz);
+    float (*f1)[mz]=  malloc(sizeof(float)*mz);
+    float (*f2)[mz]=  malloc(sizeof(float)*mz);
+    float (*f3)[mz]=  malloc(sizeof(float)*mz);
+    float (*tlg)[mz]=  malloc(sizeof(float)*mz);
+    float (*attw)[mz]=  malloc(sizeof(float)*mz);
+    float (*u)[mz][2]=  malloc(sizeof(float)*mz*2);
 
     // manage offset alignment
-    s1 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
-    s2 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
-    s3 = (float (*)[mp][mz][2]) (sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
+    float (*s1)[mp][mz][2]= (void*)(sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
+    float (*s2)[mp][mz][2]= (void*)(sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
+    float (*s3)[mp][mz][2]= (void*)(sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
 
     int nz,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,izsrf,isrf;
-    float eta, eps, omega, rmax, r, rp, rs, dr, dz, c0, dir;
+    float omega, rmax, r, rp, rs, dr, dz, c0, dir;
     if(!(errorCode=setjmp(exception_env)))
     {
-        setup(fs1, fs2, fs3, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
+        setup(fs1, fs2, fs3, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
                 &nzplt, &lz, &ib, &ir,
-                &dir, &dr, &dz, &eta, &eps, &omega, &rmax,
-                &c0, &k0, &ci, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
+                &dir, &dr, &dz, &omega, &rmax,
+                &c0, &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
                 *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, 
                 *f1, *f2, *f3, 
                 *u, 
@@ -1188,12 +1209,12 @@ int ramsurf(char const* input, char const* resultat, char const* output) {
         //     March the acoustic field out in range.
         //
         while (r < rmax) {
-            updat(fs1, nz, np, &iz, &ib, dr, dz, eta, omega, rmax, c0, k0, r, 
+            updat(fs1, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, rmax, c0, k0, r, 
                     &rp, rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf, *attw);
-            solve(nz, np, *u, *r1, *r3, *s1, *s2, *s3);
+            solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
-            outpt(fs2,  fs3,  &mdr, ndr, ndz, nzplt, lz, ir, dir, eps, r, *f3, *u, *tlg);
+            outpt(fs2,  fs3, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
         }
     }
 
@@ -1228,8 +1249,18 @@ int ramsurf(char const* input, char const* resultat, char const* output) {
     free((char*)s1-2*sizeof(float));
     free((char*)s2-2*sizeof(float));
     free((char*)s3-2*sizeof(float));
-
     return errorCode;
+}
+
+int ramsurf(char const* input, char const* resultat, char const* output) {
+    FILE* fs1 = fopen(input,"r");
+    FILE* fs2 = fopen(output,"w+");
+    FILE* fs3 = fopen(resultat,"w+");
+    size_t mr ;
+    size_t mz ;
+    size_t mp ;
+    read_dimensions(fs1, &mr, &mz, &mp);
+    return process(fs1, fs2, fs3, mr, mz, mp);
 }
 
 //
