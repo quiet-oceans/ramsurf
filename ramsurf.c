@@ -32,6 +32,8 @@
  * 
  */
 
+#include "ramsurf.h"
+
 #include <stdio.h>
 #include <stddef.h>
 #include <complex.h>
@@ -41,7 +43,6 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
-#include "ramsurf.h"
 
 #ifdef __SSE3__
 #include <xmmintrin.h>
@@ -57,6 +58,18 @@
 #ifndef min
    #define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
+
+enum ERRCODE{
+    PARSE_ERROR=1,
+    //laguerre is not converging
+    LAG_NOT_CON
+};
+
+/* M_PI dropped in c99 */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327
+#endif
+
 
 static const size_t m = 40;
 static const size_t BUFSIZE = 1024;
@@ -1218,8 +1231,6 @@ int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
         }
     }
 
-    fclose(fs2);
-    fclose(fs3);
     // deallocation step 
     free(ksq); 
     free(ksqb);
@@ -1252,10 +1263,7 @@ int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
     return errorCode;
 }
 
-int ramsurf(char const* input, char const* resultat, char const* output) {
-    FILE* fs1 = fopen(input,"r");
-    FILE* fs2 = fopen(output,"w+");
-    FILE* fs3 = fopen(resultat,"w+");
+int ramsurf(FILE* fs1, FILE* fs2, FILE *fs3) {
     size_t mr ;
     size_t mz ;
     size_t mp ;
@@ -1280,7 +1288,33 @@ int ramsurf(char const* input, char const* resultat, char const* output) {
 //
 #ifndef RAMSURF_NO_MAIN
 int main(int argc, char *argv[]) {
-    ramsurf("ram.in", "tl.grid", "tl.line");
+    const char ram_in[] = "ram.in";
+    const char tl_line[] = "tl.line";
+    const char tl_grid[] = "tl.grid";
+    FILE* fs1 = fopen(ram_in,"r");
+    if(!fs1) {
+        perror(ram_in);
+        return 1;
+    }
+    FILE* fs2 = fopen(tl_line,"w+");
+    if(!fs2) {
+        fclose(fs1);
+        perror(tl_line);
+        return 1;
+    }
+    FILE* fs3 = fopen(tl_grid,"w+");
+    if(!fs3) {
+        fclose(fs1);
+        fclose(fs2);
+        perror(tl_grid);
+        return 1;
+    }
+
+    ramsurf(fs1, fs2, fs3);
+
+    fclose(fs1);
+    fclose(fs2);
+    fclose(fs3);
     return 0;
 }
 #endif
