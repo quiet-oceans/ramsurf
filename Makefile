@@ -28,7 +28,10 @@ dist: clean Makefile $(SOURCES) $(EXTRA_DIST)
 
 distcheck: dist
 	tar xzf $(DIST_NAME).tar.gz
+	# test both normal and accelerated versions
 	$(MAKE) -C $(DIST_NAME) check
+	$(MAKE) -C $(DIST_NAME) clean
+	$(MAKE) CFLAGS=-march=native -C $(DIST_NAME) check
 	rm -rf $(DIST_NAME)
 
 check: all
