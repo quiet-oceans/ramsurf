@@ -72,7 +72,7 @@ enum ERRCODE{
 
 
 static const size_t m = 40;
-static const size_t BUFSIZE = 1024;
+enum { BUFSIZE = 1024 };
 
 typedef float complex fcomplex;
 typedef double complex dcomplex;
@@ -485,22 +485,21 @@ void epade(size_t mp, int np, int ns, int const ip, float k0, float dr,  float p
 //     Profile reader and interpolator.
 //
 static
-void zread( FILE* fs1, size_t mz, int nz, float dz, float prof[mz]) {
-    char tmp[BUFSIZE];
+void zread( float const* data, size_t mz, int nz, float dz, float prof[mz]) {
+    static char tmp[BUFSIZE];
     //
     for(int i=0;i<nz+2;i++)
         prof[i]=-1.0;
-    float profi,zi;
-    fscanf(fs1,"%f %f",&zi,&profi);
-    fgets(tmp,BUFSIZE,fs1);
+    float zi = data[0], profi = data[1];
     //
     prof[0]=profi;
     int i=1.5+zi/dz;
     prof[i-1]=profi;
     int iold=i;
+    int k=2;
     while(1) {
-        fscanf(fs1,"%f %f",&zi,&profi);
-        fgets(tmp,BUFSIZE,fs1);
+        zi = data[k++];
+        profi = data[k++];
         if(zi<0.0) break;
         i=1.5+zi/dz;
         if(i == iold)i=i+1;
@@ -526,18 +525,17 @@ void zread( FILE* fs1, size_t mz, int nz, float dz, float prof[mz]) {
 //     Set up the profiles.
 //
 static
-void profl( FILE* fs1,
+void profl( ramsurf_t const* rsurf, size_t profl_index,
         size_t mz, int nz, float dz, float omega, float rmax, float c0, float k0, float *rp, float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz], float ksqw[mz][2], float ksqb[mz][2], float attw[mz]) {
     //
     const float eta=1.0/(40.0*M_PI*log10(exp(1.0)));
-    zread(fs1, mz, nz,dz,cw);
-    zread(fs1, mz, nz,dz,attw);
-    zread(fs1, mz, nz,dz,cb);
-    zread(fs1, mz, nz,dz,rhob);
-    zread(fs1, mz, nz,dz,attn);
-    *rp=2.0*rmax;
-    fscanf(fs1,"%f",rp);
+    zread(rsurf->cw[profl_index], mz, nz,dz,cw);
+    zread(rsurf->attw[profl_index], mz, nz,dz,attw);
+    zread(rsurf->cb[profl_index], mz, nz,dz,cb);
+    zread(rsurf->rhob[profl_index], mz, nz,dz,rhob);
+    zread(rsurf->attn[profl_index], mz, nz,dz,attn);
+    *rp = rsurf->rp[profl_index];
     //
     for(int i=0; i< nz+2; i++) {
         double rtmp = (omega/cw[i]);
@@ -783,7 +781,7 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
 //     Matrix updates.
 //
 static
-void updat( FILE* fs1, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
+void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
         float dr, float dz, float omega, float rmax, float c0, float k0, 
         float r, float *rp, float rs,
         float rb[mr], float zb[mr] , float cw[mz], float cb[mz], float rhob[mz],
@@ -817,7 +815,8 @@ void updat( FILE* fs1, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz,
     //     Varying profiles.
     //
     if(r>=*rp){
-        profl(fs1, mz, nz, dz, omega, rmax, c0, k0, rp, cw, cb, rhob, attn, 
+        ++*profl_index;
+        profl(rsurf, *profl_index, mz, nz, dz, omega, rmax, c0, k0, rp, cw, cb, rhob, attn, 
                 alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
@@ -1015,7 +1014,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
 //     Initialize the parameters, acoustic field, and matrices.
 //
 static
-void setup( FILE* fs1, FILE* fs2, FILE* fs3,
+void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
         size_t mr, size_t mz, size_t mp,
         int *nz, int *np, int *ns, int *mdr, int *ndr, int *ndz, int *iz,
         int *nzplt, int *lz, int *ib, int *ir,
@@ -1029,23 +1028,17 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
         fcomplex pd1[mp], fcomplex pd2[mp], float tlg[mz], float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf, float attw[mz]) {
     float freq, zs,zr,zmax,zmplt;
 
-    char tmp[BUFSIZE];
-    //
-    fgets(tmp,BUFSIZE,fs1);
-    fscanf(fs1,"%f %f %f",&freq,&zs,&zr);
-    fgets(tmp,BUFSIZE,fs1);
-    fscanf(fs1,"%f %f %d",rmax,dr,ndr);
-    fgets(tmp,BUFSIZE,fs1);
-    fscanf(fs1,"%f %f %d %f",&zmax,dz,ndz,&zmplt);
-    fgets(tmp,BUFSIZE,fs1);
-    fscanf(fs1,"%f %d %d %f",c0,np,ns,rs);
-    fgets(tmp,BUFSIZE,fs1);
+    static char tmp[BUFSIZE];
+    freq = rsurf->freq ; zs = rsurf->zs ; zr = rsurf->zr;
+    *rmax = rsurf->rmax ; *dr = rsurf->dr ; *ndr = rsurf->ndr;
+    zmax = rsurf->zmax ; *dz = rsurf->dz ; *ndz = rsurf->ndz ; zmplt = rsurf->zmplt;
+    *c0 = rsurf->c0 ; *np = rsurf->np; *ns = rsurf->ns; *rs = rsurf->rs;
+
     //
     int i=0;
     while(1) {
-        if (fscanf(fs1,"%f %f",&rsrf[i],&zsrf[i])!=2)
-    	    longjmp(exception_env,PARSE_ERROR);
-        fgets(tmp,BUFSIZE,fs1);
+        rsrf[i] = rsurf->rsrf[i];
+        zsrf[i] = rsurf->zsrf[i];
         if( rsrf[i] < 0.0) break;
         i=i+1;
     }
@@ -1055,9 +1048,8 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
     //
     i=0;
     while(1) {
-        if (fscanf(fs1,"%f %f",&rb[i],&zb[i])!=2)
-            longjmp(exception_env,PARSE_ERROR);
-        fgets(tmp,BUFSIZE,fs1);
+        rb[i] = rsurf->rb[i];
+        zb[i] = rsurf->zb[i];
         if( rb[i] < 0.0) break;
         i=i+1;
     }
@@ -1106,7 +1098,8 @@ void setup( FILE* fs1, FILE* fs2, FILE* fs3,
     //
     //     The initial profiles and starting field.
     //
-    profl(fs1, mz, *nz, *dz, *omega, *rmax, *c0, *k0, rp, cw, cb, rhob, attn, 
+    *profl_index=0;
+    profl(rsurf, *profl_index, mz, *nz, *dz, *omega, *rmax, *c0, *k0, rp, cw, cb, rhob, attn, 
             alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
     selfs(mz, mp, *nz, *np, *ns, *iz, zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
@@ -1127,7 +1120,7 @@ void read_dimensions( FILE* fs1, size_t *mr, size_t *mz, size_t *mp)
     float rmax, dr, dz, c0, rs;
     int ndr, ndz, np, ns;
 
-    char tmp[BUFSIZE];
+    static char tmp[BUFSIZE];
     //
     fgets(tmp,BUFSIZE,fs1);
     fscanf(fs1,"%f %f %f",&freq,&zs,&zr);
@@ -1168,10 +1161,13 @@ void read_dimensions( FILE* fs1, size_t *mr, size_t *mz, size_t *mp)
 }
 
 static
-int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
+int process(ramsurf_t const* rsurf, FILE* fs2, FILE* fs3)
 {
     float k0;
     int errorCode;
+    size_t mr = rsurf->mr,
+           mz = rsurf->mz,
+           mp = rsurf->mp;
 
     // allocation step 
 
@@ -1206,10 +1202,11 @@ int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
     float (*s3)[mp][mz][2]= (void*)(sizeof(float)*2+(char*)malloc(sizeof(float)*mp*mz*2));
 
     int nz,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,izsrf,isrf;
+    size_t profl_index;
     float omega, rmax, r, rp, rs, dr, dz, c0, dir;
     if(!(errorCode=setjmp(exception_env)))
     {
-        setup(fs1, fs2, fs3, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
+        setup(rsurf, &profl_index, fs2, fs3, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
                 &nzplt, &lz, &ib, &ir,
                 &dir, &dr, &dz, &omega, &rmax,
                 &c0, &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
@@ -1222,7 +1219,7 @@ int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
         //     March the acoustic field out in range.
         //
         while (r < rmax) {
-            updat(fs1, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, rmax, c0, k0, r, 
+            updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, rmax, c0, k0, r, 
                     &rp, rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf, *attw);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
@@ -1263,12 +1260,126 @@ int process(FILE* fs1, FILE* fs2, FILE* fs3, size_t mr, size_t mz, size_t mp)
     return errorCode;
 }
 
-int ramsurf(FILE* fs1, FILE* fs2, FILE *fs3) {
-    size_t mr ;
-    size_t mz ;
-    size_t mp ;
+int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3) {
+    return process(rsurf, fs2, fs3);
+}
+
+static
+void raw_read(float ***data, FILE* fs1, size_t n)
+{
+    static char tmp[BUFSIZE];
+    *data = realloc(*data, sizeof(float*)*(n+1));
+    int max_m = 2;
+    float **curr = (*data) + n ;
+    *curr = malloc(sizeof(float) * max_m);
+
+    float profi,zi = 0.;
+    int m = 0;
+    for(size_t m=0; zi>=0. && !feof(fs1); m+=2) {
+        if( m == max_m) {
+            max_m *= 2;
+            *curr = realloc(*curr, sizeof(float) * max_m);
+        }
+        fscanf(fs1,"%f %f",&zi,&profi);
+        fgets(tmp,BUFSIZE,fs1);
+        (*curr)[m] = zi ;
+        (*curr)[m+1] = profi ;
+    }
+    if(feof(fs1)) {
+        free(*curr);
+        *curr = NULL;
+    }
+}
+
+static void rsurf_init(ramsurf_t *rsurf, FILE* fs1)
+{
+    /* grab dimensions */
+    size_t mr, mz, mp;
     read_dimensions(fs1, &mr, &mz, &mp);
-    return process(fs1, fs2, fs3, mr, mz, mp);
+
+    rsurf->mr = mr;
+    rsurf->mz = mz;
+    rsurf->mp = mp;
+
+    /* allocate memory */
+    rsurf->rsrf = malloc(sizeof(float)*mr);
+    rsurf->zsrf = malloc(sizeof(float)*mr);
+    rsurf->rb = malloc(sizeof(float)*mr);
+    rsurf->zb = malloc(sizeof(float)*mr);
+
+    rsurf->cw = malloc(sizeof(float*));   *rsurf->cw = NULL;
+    rsurf->attw = malloc(sizeof(float*)); *rsurf->attw = NULL;
+    rsurf->cb = malloc(sizeof(float*));   *rsurf->cb = NULL;
+    rsurf->rhob = malloc(sizeof(float*)); *rsurf->rhob = NULL;
+    rsurf->attn = malloc(sizeof(float*)); *rsurf->attn = NULL;
+    rsurf->rp = NULL;
+
+    /* parse parameters */
+    static char tmp[BUFSIZE];
+    //
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %f",&rsurf->freq,&rsurf->zs,&rsurf->zr);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %d",&rsurf->rmax,&rsurf->dr,&rsurf->ndr);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %f %d %f",&rsurf->zmax,&rsurf->dz,&rsurf->ndz,&rsurf->zmplt);
+    fgets(tmp,BUFSIZE,fs1);
+    fscanf(fs1,"%f %d %d %f",&rsurf->c0,&rsurf->np,&rsurf->ns,&rsurf->rs);
+    fgets(tmp,BUFSIZE,fs1);
+    
+    //
+    int i=0;
+    while(1) {
+        if (fscanf(fs1,"%f %f", &rsurf->rsrf[i], &rsurf->zsrf[i])!=2)
+    	    longjmp(exception_env,PARSE_ERROR);
+        fgets(tmp,BUFSIZE,fs1);
+        if( rsurf->rsrf[i] < 0.0) break;
+        i=i+1;
+    }
+
+    //
+    i=0;
+    while(1) {
+        if (fscanf(fs1,"%f %f",&rsurf->rb[i],&rsurf->zb[i])!=2)
+            longjmp(exception_env,PARSE_ERROR);
+        fgets(tmp,BUFSIZE,fs1);
+        if( rsurf->rb[i] < 0.0) break;
+        i=i+1;
+    }
+
+    // read profiles
+    for(size_t step = 0; !feof(fs1); ++step) {
+        raw_read(&rsurf->cw, fs1, step);
+        raw_read(&rsurf->attw, fs1, step);
+        raw_read(&rsurf->cb, fs1, step);
+        raw_read(&rsurf->rhob, fs1, step);
+        raw_read(&rsurf->attn, fs1, step);
+
+        rsurf->rp = realloc(rsurf->rp, sizeof(float)*(1 + step));
+        if(fscanf(fs1, "%f", rsurf->rp + step) != 1)
+            rsurf->rp[step] = 2.0 * rsurf->rmax;
+    }
+}
+
+static void rsurf_del(ramsurf_t *rsurf)
+{
+    free(rsurf->rsrf);
+    free(rsurf->zsrf);
+    free(rsurf->rb);
+    free(rsurf->zb);
+
+#define freeall(f) \
+    for(float **iter = f; *iter; ++iter)\
+        free(*iter);\
+    free(f);
+
+    freeall(rsurf->cw);
+    freeall(rsurf->attw);
+    freeall(rsurf->cb);
+    freeall(rsurf->rhob);
+    freeall(rsurf->attn);
+
+#undef freeall
 }
 
 //
@@ -1310,7 +1421,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ramsurf(fs1, fs2, fs3);
+    ramsurf_t rsurf;
+    rsurf_init(&rsurf, fs1);
+    ramsurf(&rsurf, fs2, fs3);
+    rsurf_del(&rsurf);
 
     fclose(fs1);
     fclose(fs2);
