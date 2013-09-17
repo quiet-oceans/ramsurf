@@ -24,6 +24,12 @@ dist: clean Makefile $(SOURCES) $(EXTRA_DIST)
 	mkdir $(DIST_NAME)
 	cp -r $(SOURCES) $(EXTRA_DIST) $(DIST_NAME)/
 	tar czf $(DIST_NAME).tar.gz $(DIST_NAME)
+	rm -rf $(DIST_NAME)
+
+distcheck: dist
+	tar xzf $(DIST_NAME).tar.gz
+	$(MAKE) -C $(DIST_NAME) check
+	rm -rf $(DIST_NAME)
 
 check: all
 	for d in `find tests -mindepth 1 -type d` ; do \
