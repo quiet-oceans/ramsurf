@@ -12,9 +12,9 @@ The original code shipped five sources:
 - `ramsurf1.5.f`
 - `ramsurfclr2.0.f`
 
-The aim of this project is to make these program run faster by using vector
-instructions and multi-threading, while keeping the original behavior. This
-implies a move to the C language.
+The aim of this project is to make these program run faster by using several
+optimization techniques, while keeping the original behavior. This implies a
+move to the C language.
 
 Building
 --------
