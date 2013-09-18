@@ -23,8 +23,8 @@ extern "C" {
 
 
     int ramsurf(ramsurf_t const* rsurf, //ram parameters
-                FILE *tl_line, // transmission loss versus range at a specified receiver depth
-                FILE *tl_grid  // the entire range-depth transmission loss field (binary file)
+                FILE *fdgrid, // the entire range-depth transmission loss field (binary file)
+                FILE *fdline  // transmission loss versus range at a specified receiver depth
                 );
 
 #ifdef __cplusplus

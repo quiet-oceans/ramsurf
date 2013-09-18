@@ -832,14 +832,15 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
 //     Output transmission loss.
 //
 static
-void  outpt( FILE* fs2, FILE* fs3, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
+void  outpt( FILE* fdgrid, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
         float f3[mz], float u[mz][2], float tlg[mz]) {
     const float eps=1.0e-20;
-    fcomplex ur;
     //
-    ur=(1.0f-dir)*(f3[ir-1]*(u[ir-1][0]+I*u[ir-1][1]))+dir*f3[ir]*(u[ir][0]+I*u[ir][1]);
-    float tl=-20.0*log10(cabs(ur)+eps)+10.0*log10(r+eps);
-    fprintf(fs2,"%f %f\n",r,tl);
+    fcomplex ur=(1.0f-dir)*(f3[ir-1]*(u[ir-1][0]+I*u[ir-1][1]))+dir*f3[ir]*(u[ir][0]+I*u[ir][1]);
+    if(fdline) {
+        float tl=-20.0*log10(cabs(ur)+eps)+10.0*log10(r+eps);
+        fprintf(fdline,"%f %f\n",r,tl);
+    }
     //
     *mdr=*mdr+1;
     if(*mdr==ndr) {
@@ -853,9 +854,9 @@ void  outpt( FILE* fs2, FILE* fs3, size_t mz, int *mdr, int ndr, int ndz, int nz
             //
         }
        int n = lz * sizeof(tlg[0]);
-       fwrite((char*)&n, sizeof(n), 1, fs3); //FORTRAN record header
-       fwrite((char*)tlg,sizeof(tlg[0]),lz,fs3);
-       fwrite((char*)&n, sizeof(n), 1, fs3); //FORTRAN record footer
+       fwrite((char*)&n, sizeof(n), 1, fdgrid); //FORTRAN record header
+       fwrite((char*)tlg,sizeof(tlg[0]),lz,fdgrid);
+       fwrite((char*)&n, sizeof(n), 1, fdgrid); //FORTRAN record footer
     }
     //
 }
@@ -1020,7 +1021,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
 //     Initialize the parameters, acoustic field, and matrices.
 //
 static
-void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
+void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdline,
         size_t mr, size_t mz, size_t mp,
         int *nz, int *np, int *ns, int *mdr, int *ndr, int *ndz, int *iz,
         int *nzplt, int *lz, int *ib, int *ir,
@@ -1097,9 +1098,9 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
         *lz=*lz+1;
     }
     int lz_size = sizeof(*lz);
-    fwrite((char*)&lz_size, sizeof(lz_size), 1, fs3); //FORTRAN RECORD HEADER
-    fwrite((char*)lz,sizeof(*lz),1,fs3);
-    fwrite((char*)&lz_size, sizeof(lz_size), 1, fs3); //FORTRAN RECORD FOOTER
+    fwrite((char*)&lz_size, sizeof(lz_size), 1, fdgrid); //FORTRAN RECORD HEADER
+    fwrite((char*)lz,sizeof(*lz),1,fdgrid);
+    fwrite((char*)&lz_size, sizeof(lz_size), 1, fdgrid); //FORTRAN RECORD FOOTER
     //
     //     The initial profiles and starting field.
     //
@@ -1108,7 +1109,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
             alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
     selfs(mz, mp, *nz, *np, *ns, *iz, rsurf->zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
-    outpt(fs2,  fs3,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
+    outpt(fdgrid,  fdline,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
     //
     //     The propagation matrices.
     //
@@ -1118,7 +1119,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
     //
 }
 
-int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
+int ramsurf(ramsurf_t const* rsurf, FILE* fdgrid, FILE *fdline)
 {
     float k0;
     int errorCode;
@@ -1162,7 +1163,7 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
     float omega, r, rp, rs, dr, dz, dir;
     if(!(errorCode=setjmp(exception_env)))
     {
-        setup(rsurf, &profl_index, fs2, fs3, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
+        setup(rsurf, &profl_index, fdgrid, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
                 &nzplt, &lz, &ib, &ir,
                 &dir, &dr, &dz, &omega, 
                 &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
@@ -1180,7 +1181,7 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
-            outpt(fs2,  fs3, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
+            outpt(fdgrid, fdline, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
         }
     }
 

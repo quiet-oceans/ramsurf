@@ -254,7 +254,7 @@ int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused)))
     {
         ramsurf_t rsurf;
         rsurf_init(&rsurf, fs1);
-        ramsurf(&rsurf, fs2, fs3);
+        ramsurf(&rsurf, fs3, fs2);
         rsurf_del(&rsurf);
     }
 
