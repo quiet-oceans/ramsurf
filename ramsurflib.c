@@ -1109,14 +1109,13 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
     //
 }
 
-static
-int process(ramsurf_t const* rsurf, FILE* fs2, FILE* fs3)
+int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
 {
     float k0;
     int errorCode;
     size_t mr = rsurf->mr,
-           mz = rsurf->mz,
-           mp = rsurf->mp;
+           mz = rsurf->zmax / rsurf->dz + 1.5f,
+           mp = rsurf->np;
 
     // allocation step 
 
@@ -1209,6 +1208,3 @@ int process(ramsurf_t const* rsurf, FILE* fs2, FILE* fs3)
     return errorCode;
 }
 
-int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3) {
-    return process(rsurf, fs2, fs3);
-}

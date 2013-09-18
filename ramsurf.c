@@ -129,8 +129,6 @@ void rsurf_init(ramsurf_t *rsurf, FILE* fs1)
     read_dimensions(fs1, &mr, &mz, &mp);
 
     rsurf->mr = mr;
-    rsurf->mz = mz;
-    rsurf->mp = mp;
 
     /* allocate memory */
     rsurf->rsrf = malloc(sizeof(float)*mr);

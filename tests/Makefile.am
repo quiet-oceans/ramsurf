@@ -26,7 +26,7 @@ SUFFIXES=.test .sh
 	echo '#!/bin/sh' > $@
 	echo 'set -e' 	>> $@
 	echo 'chmod -R u+rwx `basename $<`.d || true' >> $@
-	echo 'rm -rf `basename $<`' >> $@
+	echo 'rm -rf `basename $<`.d' >> $@
 	echo 'cp -r $(srcdir)/`basename $<` `basename $<`.d' >> $@
 	echo 'chmod -R u+rwx `basename $<`.d' >> $@
 	echo 'cd `basename $<`.d' >> $@

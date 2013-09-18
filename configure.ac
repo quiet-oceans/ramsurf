@@ -11,6 +11,7 @@ AM_INIT_AUTOMAKE([foreign 1.0])
 # Checks for programs.
 AC_PROG_CC_C99
 AC_PROG_F77
+AC_PROG_RANLIB
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lm':
