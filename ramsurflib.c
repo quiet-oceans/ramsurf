@@ -783,7 +783,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         float attn[mz], float alpw[mz], float alpb[mz],
         fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
         float f1[mz], float f2[mz], float f3[mz],
-        fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
+        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
         fcomplex pd1[mp], fcomplex pd2[mp],
         float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
@@ -805,7 +805,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
     *iz=min(nz,*iz);
     if((*iz!=jz) || (*izsrf != jzsrf))
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-                f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
+                f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
     //     Varying profiles.
     //
@@ -814,7 +814,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         profl(rsurf, *profl_index, mz, nz, dz, omega, k0, rp, cw, cb, rhob, attn, 
                 alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-                f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
+                f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
     //     Turn off the stability constraints.
@@ -823,7 +823,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         int ns=0;
         epade(mp, np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-                f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
+                f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
 }
@@ -866,12 +866,12 @@ void  outpt( FILE* fdgrid, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, 
 //
 static
 void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2], 
-        fcomplex r1[mp][mz], fcomplex r3[mp][mz],
+        float r1[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2]) {
     float v[nz][2] __attribute__((aligned(16)));
     for(int j=0; j<np; j++) {
-        float *R1 = (float*) r1[j];
-        float *R3 = (float*) r3[j];
+        float *R1 =  &r1[j][0][0];
+        float *R3 =  &r3[j][0][0];
         const int bound = nz/2;
 
         for(int i=1; i< bound; i+=2) {
@@ -939,12 +939,10 @@ void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2],
 //
 static
 void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2], 
-        fcomplex r1[mp][mz], fcomplex r3[mp][mz],
+        float r1[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2]) {
     float v[nz][2];
     for(int j=0; j<np; j++) {
-        float *R1 = (float*) r1[j];
-        float *R3 = (float*) r3[j];
 
         float vr = v[1][0] = s1[j][1][0]*u[0][0]-s1[j][1][1]*u[0][1] + s2[j][1][0]*u[1][0] - s2[j][1][1]*u[1][1] + s3[j][1][0]*u[2][0] - s3[j][1][1]*u[2][1];
         float vc = v[1][1] = s1[j][1][0]*u[0][1]+s1[j][1][1]*u[0][0] + s2[j][1][0]*u[1][1] + s2[j][1][1]*u[1][0] + s3[j][1][0]*u[2][1] + s3[j][1][1]*u[2][0];
@@ -953,11 +951,11 @@ void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2],
             v[i][0] = s1[j][i][0]*u[i-1][0]-s1[j][i][1]*u[i-1][1];
             v[i][0]+= s2[j][i][0]*u[i][0] - s2[j][i][1]*u[i][1];
             v[i][0]+= s3[j][i][0]*u[i+1][0] - s3[j][i][1]*u[i+1][1];
-            v[i][0]-= R1[2*i]*vr - R1[2*i+1]*vc;
+            v[i][0]-= r1[j][i][0]*vr - r1[j][i][1]*vc;
             v[i][1] = s1[j][i][0]*u[i-1][1]+s1[j][i][1]*u[i-1][0];
             v[i][1]+= s2[j][i][0]*u[i][1] + s2[j][i][1]*u[i][0];
             v[i][1]+= s3[j][i][0]*u[i+1][1] + s3[j][i][1]*u[i+1][0];
-            v[i][1]-= R1[2*i]*vc + R1[2*i+1]*vr;
+            v[i][1]-= r1[j][i][0]*vc + r1[j][i][1]*vr;
             vr = v[i][0];
             vc = v[i][1];
         }
@@ -965,8 +963,8 @@ void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2],
         float ur = u[nz+1][0],
               uc = u[nz+1][1];
         for(int i=nz; i>=1; i--) {
-            u[i][0] = v[i][0] - (R3[2*i] * ur - R3[2*i+1] * uc);
-            u[i][1] = v[i][1] - (R3[2*i] * uc + R3[2*i+1] * ur);
+            u[i][0] = v[i][0] - (r3[j][i][0] * ur - r3[j][i][1] * uc);
+            u[i][1] = v[i][1] - (r3[j][i][0] * uc + r3[j][i][1] * ur);
             ur = u[i][0];
             uc = u[i][1];
         }
@@ -983,7 +981,7 @@ static
 void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float dr, float dz, float k0, float rhob[mz], float alpw[mz], 
         float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
         float f1[mz], float f2[mz], float f3[mz], float u[mz][2], 
-        fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
+        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
         fcomplex pd1[mp], fcomplex pd2[mp], 
         int izsrf) {
@@ -1003,7 +1001,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
     pd1[0]=0.0;
     pd2[0]=-1.0;
     matrc(mz, mp, nz, 1, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-            f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
+            f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
     solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
     solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
     //
@@ -1011,7 +1009,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
     //
     epade(mp, np,ns,2,k0,dr,(float (*)[2])pd1,(float (*)[2])pd2);
     matrc(mz, mp, nz, np, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-            f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
+            f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
     solve(mz, mp, nz, np, u, r1, r3, s1, s2, s3);
     //
 }
@@ -1030,7 +1028,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
         float attn[mz], float alpw[mz], float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
         float f1[mz], float f2[mz], float f3[mz],
         float u[mz][2], 
-        fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
+        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
         fcomplex pd1[mp], fcomplex pd2[mp], float tlg[mz], float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
     float zr,zmax,zmplt;
@@ -1085,8 +1083,10 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
     if(*rs < *dr){*rs=2.0*(rsurf->rmax);}
     //
     for(size_t j=0;j<mp; j++) {
-        r3[j][0]=0.0;
-        r1[j][*nz+1]=0.0;
+        r3[j][0][0]=0.0;
+        r3[j][0][1]=0.0;
+        r1[j][*nz+1][0]=0.0;
+        r1[j][*nz+1][1]=0.0;
     }
     for(int i=0; i< *nz+2; i++) {
         u[i][0]=0.0;
@@ -1115,7 +1115,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
     //
     epade(mp, *np, *ns, 1, *k0, *dr, (float (*)[2])pd1, (float (*)[2])pd2);
     matrc(mz, mp, *nz, *np, *iz, *dz, *k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
-            f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
+            f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
 }
 
@@ -1132,9 +1132,9 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fdgrid, FILE *fdline)
     fcomplex (*ksq)[mz] =  malloc(sizeof(fcomplex)*mz);
     fcomplex (*ksqb)[mz] =  malloc(sizeof(fcomplex)*mz);
     fcomplex (*ksqw)[mz] =  malloc(sizeof(fcomplex)*mz);
-    fcomplex (*r1)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
-    fcomplex (*r2)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
-    fcomplex (*r3)[mp][mz]=  malloc(sizeof(fcomplex)*mz*mp);
+    float (*r1)[mp][mz][2]=  malloc(sizeof(float)*mz*mp*2);
+    float (*r2)[mp][mz][2]=  malloc(sizeof(float)*mz*mp*2);
+    float (*r3)[mp][mz][2]=  malloc(sizeof(float)*mz*mp*2);
     fcomplex (*pd1)[mp]=  malloc(sizeof(fcomplex)*mp);
     fcomplex (*pd2)[mp]=  malloc(sizeof(fcomplex)*mp);
     float (*rb)[mr]=  malloc(sizeof(float)*mr);
