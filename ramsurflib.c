@@ -1075,7 +1075,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
     for(int i=(*ndz); i<(*nzplt); i+=(*ndz)) {
         *lz=*lz+1;
     }
-    assert(*lz == (*nzplt) / *ndz);
+
     //
     //     The initial profiles and starting field.
     //
@@ -1094,7 +1094,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
     //
 }
 
-int ramsurf(ramsurf_t const* rsurf, float *** ogrid, FILE *fdline)
+int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
 {
     float k0;
     int errorCode;
@@ -1136,13 +1136,13 @@ int ramsurf(ramsurf_t const* rsurf, float *** ogrid, FILE *fdline)
     float (*s2)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
     float (*s3)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
 
-    int nz,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,izsrf,isrf;
+    int nz,np,ns,mdr,ndr,ndz,iz,nzplt,ib,ir,izsrf,isrf;
     size_t profl_index;
     float omega, r, rp, rs, dr, dz, dir;
     if(!(errorCode=setjmp(exception_env)))
     {
         setup(rsurf, &profl_index, &out, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
-                &nzplt, &lz, &ib, &ir,
+                &nzplt, lz, &ib, &ir,
                 &dir, &dr, &dz, &omega, 
                 &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
                 *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, 
@@ -1159,7 +1159,7 @@ int ramsurf(ramsurf_t const* rsurf, float *** ogrid, FILE *fdline)
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
-            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
+            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, *lz, ir, dir, r, *f3, *u, *tlg);
         }
         if(errorCode)
             output_destroy(&out);

@@ -214,9 +214,8 @@ void rsurf_del(ramsurf_t *rsurf)
 }
 
 static
-void rsurf_flush(FILE* fd, ramsurf_t *rsurf, float **output)
+void rsurf_flush(FILE* fd, int lz, ramsurf_t *rsurf, float **output)
 {
-    int lz = (rsurf->zmplt/rsurf->dz-0.5) / rsurf->ndz;
     int n = sizeof(lz);
     fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record header
     fwrite((char*)&lz, sizeof(lz), 1, fd);
@@ -274,10 +273,11 @@ int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused)))
     if(!(errorCode=setjmp(exception_env)))
     {
         ramsurf_t rsurf;
+        int lz;
         rsurf_init(&rsurf, fs1);
         float ** rsurf_output = NULL;
-        ramsurf(&rsurf, &rsurf_output, fs2);
-        rsurf_flush(fs3, &rsurf, rsurf_output);
+        ramsurf(&rsurf, &lz, &rsurf_output, fs2);
+        rsurf_flush(fs3, lz, &rsurf, rsurf_output);
         rsurf_del(&rsurf);
     }
 
