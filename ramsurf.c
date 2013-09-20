@@ -99,25 +99,27 @@ static
 void raw_read(float ***data, FILE* fs1, size_t n)
 {
     static char tmp[BUFSIZE];
-    *data = realloc(*data, sizeof(float*)*(n+1));
+    *data = realloc(*data, sizeof(float*)*(n+2));
+    (*data)[n+1] = NULL;
+
     size_t max_m = 2;
-    float **curr = (*data) + n ;
-    *curr = malloc(sizeof(float) * max_m);
+    (*data)[n] = malloc(sizeof(float) * max_m);
 
     float profi,zi = 0.;
-    for(size_t m=0; zi>=0. && !feof(fs1); m+=2) {
+    size_t m;
+    for(m=0; zi>=0. && !feof(fs1); m+=2) {
         if( m == max_m) {
             max_m *= 2;
-            *curr = realloc(*curr, sizeof(float) * max_m);
+            (*data)[n] = realloc((*data)[n], sizeof(float) * max_m);
         }
         fscanf(fs1,"%f %f",&zi,&profi);
         fgets(tmp,BUFSIZE,fs1);
-        (*curr)[m] = zi ;
-        (*curr)[m+1] = profi ;
+        (*data)[n][m] = zi ;
+        (*data)[n][m+1] = profi ;
     }
-    if(feof(fs1)) {
-        free(*curr);
-        *curr = NULL;
+    if(m==0) {
+        free((*data)[n]);
+        (*data)[n] = NULL;
     }
 }
 
@@ -188,6 +190,13 @@ void rsurf_init(ramsurf_t *rsurf, FILE* fs1)
     }
 }
 
+static 
+void free_profile(float ** f) {
+    for(float **iter = f; *iter; ++iter)
+        free(*iter);
+    free(f);
+}
+
 static
 void rsurf_del(ramsurf_t *rsurf)
 {
@@ -196,17 +205,14 @@ void rsurf_del(ramsurf_t *rsurf)
     free(rsurf->rb);
     free(rsurf->zb);
 
-#define freeall(f) \
-    for(float **iter = f; *iter; ++iter)\
-        free(*iter);\
-    free(f);
+    free_profile(rsurf->cw);
+    free_profile(rsurf->cb);
+    free_profile(rsurf->rhob);
+    free_profile(rsurf->attn);
 
-    freeall(rsurf->cw);
-    freeall(rsurf->cb);
-    freeall(rsurf->rhob);
-    freeall(rsurf->attn);
+    free(rsurf->rp);
+}
 
-#undef freeall
 static
 void rsurf_flush(FILE* fd, ramsurf_t *rsurf, float **output)
 {
@@ -216,7 +222,6 @@ void rsurf_flush(FILE* fd, ramsurf_t *rsurf, float **output)
     fwrite((char*)&lz, sizeof(lz), 1, fd);
     fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record footer
 
-    free(rsurf->rp);
     for(float **iter = output; *iter; ++iter) {
         int n = lz * sizeof(float);
         fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record header
