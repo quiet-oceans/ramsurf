@@ -23,7 +23,7 @@ extern "C" {
 
 
     int ramsurf(ramsurf_t const* rsurf, //ram parameters
-                FILE *fdgrid, // the entire range-depth transmission loss field (binary file)
+                float ***fdgrid, // the entire range-depth transmission loss field (pointer to the unallocated matrix)
                 FILE *fdline  // transmission loss versus range at a specified receiver depth
                 );
 

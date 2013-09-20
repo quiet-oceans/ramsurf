@@ -207,8 +207,24 @@ void rsurf_del(ramsurf_t *rsurf)
     freeall(rsurf->attn);
 
 #undef freeall
+static
+void rsurf_flush(FILE* fd, ramsurf_t *rsurf, float **output)
+{
+    int lz = (rsurf->zmplt/rsurf->dz-0.5) / rsurf->ndz;
+    int n = sizeof(lz);
+    fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record header
+    fwrite((char*)&lz, sizeof(lz), 1, fd);
+    fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record footer
 
     free(rsurf->rp);
+    for(float **iter = output; *iter; ++iter) {
+        int n = lz * sizeof(float);
+        fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record header
+        fwrite((char*)(*iter + 1), sizeof(float), lz, fd);
+        fwrite((char*)&n, sizeof(n), 1, fd); //FORTRAN record footer
+        free(*iter);
+    }
+    free(output);
 }
 
 //
@@ -254,7 +270,9 @@ int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused)))
     {
         ramsurf_t rsurf;
         rsurf_init(&rsurf, fs1);
-        ramsurf(&rsurf, fs3, fs2);
+        float ** rsurf_output = NULL;
+        ramsurf(&rsurf, &rsurf_output, fs2);
+        rsurf_flush(fs3, &rsurf, rsurf_output);
         rsurf_del(&rsurf);
     }
 

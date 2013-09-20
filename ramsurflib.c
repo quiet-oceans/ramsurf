@@ -59,7 +59,8 @@
 
 enum {
     //laguerre is not converging
-    LAG_NOT_CON = 2
+    LAG_NOT_CON = 2,
+    NOT_ENOUGH_MEMORY
 };
 
 /* M_PI dropped in c99 */
@@ -68,12 +69,64 @@ enum {
 #endif
 
 
+
+
 static const size_t m = 40;
 
 typedef float complex fcomplex;
 typedef double complex dcomplex;
 
 static jmp_buf exception_env;
+
+/* output management { */
+typedef struct {
+    float ** buffer;
+    float ** current;
+    float ** end;
+} output_t;
+
+static
+void output_init(output_t* o) {
+    static const int init_size = 32;
+    o->buffer = malloc(sizeof(*o->buffer)*init_size);
+    o->current = o->buffer;
+    o->end = o->current + init_size;
+}
+static
+void output_destroy(output_t* o) {
+    float ** iter;
+    for(iter = o->buffer; iter < o->current; ++iter)
+        free(*iter);
+    free(o->buffer);
+}
+
+static
+float** output_release(output_t* o) {
+    int old_size = o->current - o->buffer;
+    int new_size = old_size +1 ;
+    o->buffer = realloc(o->buffer, new_size * sizeof(*o->buffer));
+    o->buffer[old_size] = NULL;
+    return o-> buffer;
+}
+
+static
+void output_push_back( output_t* o, float const * data, int count, float r) {
+    if( o->current == o->end) {
+        int old_size = o->end - o->buffer;
+        int new_size = old_size << 1;
+        o->buffer = realloc(o->buffer, new_size * sizeof(*o->buffer));
+        if(!o->buffer) {
+    	    longjmp(exception_env, NOT_ENOUGH_MEMORY);
+        }
+        o->current = o->buffer + old_size;
+        o->end = o->buffer + new_size;
+    }
+    *o->current = malloc((1+count) * sizeof(*data));
+    (*o->current)[0] = r;                                   // first float is the range
+    memcpy((*o->current) + 1, data, count * sizeof(*data)); // others are the data
+    ++o->current;
+}
+/* } */
 
 //
 //     This subroutine finds a root of a polynomial of degree n > 2
@@ -836,7 +889,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
 //     Output transmission loss.
 //
 static
-void  outpt( FILE* fdgrid, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
+void  outpt( output_t* out, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
         float f3[mz], float u[mz][2], float tlg[mz]) {
     const float eps=1.0e-20;
     //
@@ -857,10 +910,7 @@ void  outpt( FILE* fdgrid, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, 
             j=j+1;
             //
         }
-       int n = lz * sizeof(tlg[0]);
-       fwrite((char*)&n, sizeof(n), 1, fdgrid); //FORTRAN record header
-       fwrite((char*)tlg,sizeof(tlg[0]),lz,fdgrid);
-       fwrite((char*)&n, sizeof(n), 1, fdgrid); //FORTRAN record footer
+       output_push_back(out, tlg, lz, r);
     }
     //
 }
@@ -953,7 +1003,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
 //     Initialize the parameters, acoustic field, and matrices.
 //
 static
-void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdline,
+void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fdline,
         size_t mr, size_t mz, size_t mp,
         int *nz, int *np, int *ns, int *mdr, int *ndr, int *ndz, int *iz,
         int *nzplt, int *lz, int *ib, int *ir,
@@ -1031,10 +1081,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
     for(int i=(*ndz); i<(*nzplt); i+=(*ndz)) {
         *lz=*lz+1;
     }
-    int lz_size = sizeof(*lz);
-    fwrite((char*)&lz_size, sizeof(lz_size), 1, fdgrid); //FORTRAN RECORD HEADER
-    fwrite((char*)lz,sizeof(*lz),1,fdgrid);
-    fwrite((char*)&lz_size, sizeof(lz_size), 1, fdgrid); //FORTRAN RECORD FOOTER
+    assert(*lz == (*nzplt) / *ndz);
     //
     //     The initial profiles and starting field.
     //
@@ -1043,7 +1090,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
             alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
     selfs(mz, mp, *nz, *np, *ns, *iz, rsurf->zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
-    outpt(fdgrid,  fdline,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
+    outpt(out,  fdline,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
     //
     //     The propagation matrices.
     //
@@ -1053,13 +1100,16 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fdgrid, FILE* fdli
     //
 }
 
-int ramsurf(ramsurf_t const* rsurf, FILE* fdgrid, FILE *fdline)
+int ramsurf(ramsurf_t const* rsurf, float *** ogrid, FILE *fdline)
 {
     float k0;
     int errorCode;
     size_t mr = rsurf->mr,
            mz = rsurf->zmax / rsurf->dz + 1.5f,
            mp = rsurf->np;
+
+    output_t out;
+    output_init(&out);
 
     // allocation step 
     void *scratch = malloc(sizeof(float) * ( 2*mz*3 + 2*mz*mp*3 + 2*mp*2 + mr*4 + mz *10 + 2*mz*1 + 2*mp*mz*3));
@@ -1097,7 +1147,7 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fdgrid, FILE *fdline)
     float omega, r, rp, rs, dr, dz, dir;
     if(!(errorCode=setjmp(exception_env)))
     {
-        setup(rsurf, &profl_index, fdgrid, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
+        setup(rsurf, &profl_index, &out, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
                 &nzplt, &lz, &ib, &ir,
                 &dir, &dr, &dz, &omega, 
                 &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
@@ -1115,8 +1165,12 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fdgrid, FILE *fdline)
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
-            outpt(fdgrid, fdline, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
+            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
         }
+        if(errorCode)
+            output_destroy(&out);
+        else
+            *ogrid = output_release(&out);
     }
 
     // deallocation step 
