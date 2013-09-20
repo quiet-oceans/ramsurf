@@ -7,6 +7,13 @@
 extern "C" {
 #endif
 
+    enum {
+        //laguerre is not converging
+        LAG_NOT_CON = 2,
+        NOT_ENOUGH_MEMORY
+    };
+
+
     typedef struct {
         size_t mr; // max number of elements between rb and rsrf
         float freq, zs, zr; //frequency in Hz, source depth, receiver depth (data at this depth goes into tl.line)
@@ -23,9 +30,9 @@ extern "C" {
 
 
     int ramsurf(ramsurf_t const* rsurf, //ram parameters
-                float ***fdgrid, // the entire range-depth transmission loss field (pointer to the unallocated matrix)
-                FILE *fdline  // transmission loss versus range at a specified receiver depth
-                );
+            float ***fdgrid, // the entire range-depth transmission loss field (pointer to the unallocated matrix)
+            FILE *fdline  // transmission loss versus range at a specified receiver depth
+            );
 
 #ifdef __cplusplus
 }

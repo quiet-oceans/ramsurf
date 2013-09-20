@@ -57,12 +57,6 @@
    #define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #endif
 
-enum {
-    //laguerre is not converging
-    LAG_NOT_CON = 2,
-    NOT_ENOUGH_MEMORY
-};
-
 /* M_PI dropped in c99 */
 #ifndef M_PI
 #define M_PI 3.14159265358979323846264338327
