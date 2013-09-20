@@ -49,8 +49,7 @@ The C version mimics the FORTRAN interface and assumes all inputs are described
 in `ram.in`. It outputs two files: `lt.line` as plain text and `tl.grid` using
 the binary format used by FORTRAN.
 
-This version adds surface modeling, and two sections when compared to the
-original ram format extensively described in `readme.orig`::
+The input format is *the same* as the one described in `readme.orig`::
     
     # sample config. The first line is a header and is skipped. 
     freq zs zr          #frequency in Hz, source depth, receiver depth (data at this depth goes into tl.line)
@@ -66,9 +65,6 @@ original ram format extensively described in `readme.orig`::
     bathymetry_rangeM bathymetry_depthM
     -1 -1
     ssp_depth0 ssp_value0       # sound speed profile in water
-    ...
-    -1 -1
-    wind_attn_depth0 wind_attn_value0 # wind attenuation
     ...
     -1 -1
     bssp_depth0 bssp_value0    # sound speed profile in bottom

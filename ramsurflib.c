@@ -524,21 +524,19 @@ void zread( float const* data, size_t mz, int nz, float dz, float prof[mz]) {
 static
 void profl( ramsurf_t const* rsurf, size_t profl_index,
         size_t mz, int nz, float dz, float omega, float k0, float *rp, float cw[mz], float cb[mz], float rhob[mz],
-        float attn[mz], float alpw[mz], float alpb[mz], float ksqw[mz][2], float ksqb[mz][2], float attw[mz]) {
+        float attn[mz], float alpw[mz], float alpb[mz], float ksqw[mz][2], float ksqb[mz][2]) {
     //
     const float eta=1.0/(40.0*M_PI*log10(exp(1.0)));
     zread(rsurf->cw[profl_index], mz, nz,dz,cw);
-    zread(rsurf->attw[profl_index], mz, nz,dz,attw);
     zread(rsurf->cb[profl_index], mz, nz,dz,cb);
     zread(rsurf->rhob[profl_index], mz, nz,dz,rhob);
     zread(rsurf->attn[profl_index], mz, nz,dz,attn);
     *rp = rsurf->rp[profl_index];
     //
     for(int i=0; i< nz+2; i++) {
-        double rtmp = (omega/cw[i]);
-        double itmp = (omega/cw[i])*(eta*attw[i]);
-        ksqw[i][0]=(rtmp*rtmp-itmp*itmp)-k0*k0;
-        ksqw[i][1]=(rtmp*itmp+itmp*rtmp);
+        float rtmp = omega/cw[i], itmp;
+        ksqw[i][0]= rtmp*rtmp - k0*k0;
+        ksqw[i][1]= 0.f;
         rtmp = (omega/cb[i]);
         itmp = (omega/cb[i])*(eta*attn[i]);
         ksqb[i][0]=(rtmp*rtmp-itmp*itmp)-k0*k0;
@@ -788,7 +786,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
         fcomplex pd1[mp], fcomplex pd2[mp],
-        float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf, float attw[mz]) {
+        float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
     //
     //     Varying bathymetry.
     //
@@ -814,7 +812,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
     if(r>=*rp){
         ++*profl_index;
         profl(rsurf, *profl_index, mz, nz, dz, omega, k0, rp, cw, cb, rhob, attn, 
-                alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
+                alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, (float (*)[mz][2])r1, (float (*)[mz][2])r2, (float (*)[mz][2])r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
@@ -1022,7 +1020,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
         float u[mz][2], 
         fcomplex r1[mp][mz], fcomplex r2[mp][mz], fcomplex r3[mp][mz],
         float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
-        fcomplex pd1[mp], fcomplex pd2[mp], float tlg[mz], float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf, float attw[mz]) {
+        fcomplex pd1[mp], fcomplex pd2[mp], float tlg[mz], float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
     float zr,zmax,zmplt;
 
     zr = rsurf->zr;
@@ -1096,7 +1094,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index, FILE* fs2, FILE* fs3,
     //
     *profl_index=0;
     profl(rsurf, *profl_index, mz, *nz, *dz, *omega, *k0, rp, cw, cb, rhob, attn, 
-            alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb, attw);
+            alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
     selfs(mz, mp, *nz, *np, *ns, *iz, rsurf->zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
     outpt(fs2,  fs3,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
@@ -1141,7 +1139,6 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
     float (*f2)[mz]=  malloc(sizeof(float)*mz);
     float (*f3)[mz]=  malloc(sizeof(float)*mz);
     float (*tlg)[mz]=  malloc(sizeof(float)*mz);
-    float (*attw)[mz]=  malloc(sizeof(float)*mz);
     float (*u)[mz][2]=  malloc(sizeof(float)*mz*2);
 
     // manage offset alignment
@@ -1162,14 +1159,14 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
                 *f1, *f2, *f3, 
                 *u, 
                 *r1, *r2, *r3, *s1, *s2, *s3, 
-                *pd1, *pd2, *tlg, *rsrf, *zsrf, &izsrf, &isrf, *attw);
+                *pd1, *pd2, *tlg, *rsrf, *zsrf, &izsrf, &isrf);
         //
         //     March the acoustic field out in range.
         //
         while (r < rsurf->rmax) {
             updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, k0, r, 
                     &rp, rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
-                    *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf, *attw);
+                    *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
             outpt(fs2,  fs3, mz,  &mdr, ndr, ndz, nzplt, lz, ir, dir, r, *f3, *u, *tlg);
@@ -1199,7 +1196,6 @@ int ramsurf(ramsurf_t const* rsurf, FILE* fs2, FILE *fs3)
     free(f2);
     free(f3);
     free(tlg);
-    free(attw);
     free(u) ;
     // manage offsets before freeing
     free((char*)s1-2*sizeof(float));

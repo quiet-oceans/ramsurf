@@ -502,10 +502,6 @@ header line
  125.0000	1497.5321
  150.0000	1499.8458
 -1	-1
-0	0.0356346	surface windy effect
-2.0001049	0.0001260	RMS wave effect wears off
-5	0.0001260	water attenuation continues
--1	-1
 0.0000000	3000.0000000
 -1	-1
 0.0000000	2.0999999

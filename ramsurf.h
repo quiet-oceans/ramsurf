@@ -17,7 +17,7 @@ extern "C" {
         float *rsrf, *zsrf; // surface depth: rsrf contains ranges and zsrf the depths. Both terminate by -1
         float *rb, *zb; // bathymetry: rb contains ranges , zb contains bathymetry values. Both teminate by -1
         // array of float arrays. Each subarray contains a profile, as an array of floats containing depth and informations alternatively.
-        float **cw, **attw, **cb, **rhob, **attn; // sound speed in water, wind attenuation, sound speed in bottom, density of bottom, attenuation of bottom, 
+        float **cw, **cb, **rhob, **attn; // sound speed in water, sound speed in bottom, density of bottom, attenuation of bottom, 
         float *rp; // new profile boundaries (use new profile when a value is reached)
     } ramsurf_t;
 

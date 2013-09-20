@@ -137,7 +137,6 @@ void rsurf_init(ramsurf_t *rsurf, FILE* fs1)
     rsurf->zb = malloc(sizeof(float)*mr);
 
     rsurf->cw = malloc(sizeof(float*));   *rsurf->cw = NULL;
-    rsurf->attw = malloc(sizeof(float*)); *rsurf->attw = NULL;
     rsurf->cb = malloc(sizeof(float*));   *rsurf->cb = NULL;
     rsurf->rhob = malloc(sizeof(float*)); *rsurf->rhob = NULL;
     rsurf->attn = malloc(sizeof(float*)); *rsurf->attn = NULL;
@@ -179,7 +178,6 @@ void rsurf_init(ramsurf_t *rsurf, FILE* fs1)
     // read profiles
     for(size_t step = 0; !feof(fs1); ++step) {
         raw_read(&rsurf->cw, fs1, step);
-        raw_read(&rsurf->attw, fs1, step);
         raw_read(&rsurf->cb, fs1, step);
         raw_read(&rsurf->rhob, fs1, step);
         raw_read(&rsurf->attn, fs1, step);
@@ -204,7 +202,6 @@ void rsurf_del(ramsurf_t *rsurf)
     free(f);
 
     freeall(rsurf->cw);
-    freeall(rsurf->attw);
     freeall(rsurf->cb);
     freeall(rsurf->rhob);
     freeall(rsurf->attn);

@@ -22,7 +22,7 @@ c
 c     mr=bathymetry points, mz=depth grid, mp=pade terms.
 c
       parameter (mr=505,mz=20002,mp=10)
-      dimension rb(mr),zb(mr),cw(mz),cb(mz),rhob(mz),attn(mz),attw(mz),
+      dimension rb(mr),zb(mr),cw(mz),cb(mz),rhob(mz),attn(mz),
      >   alpb(mz),f1(mz),f2(mz),f3(mz),ksq(mz),ksqw(mz),ksqb(mz),u(mz),
      >   v(mz),tlg(mz),r1(mz,mp),r2(mz,mp),r3(mz,mp),s1(mz,mp),
      >   s2(mz,mp),s3(mz,mp),pd1(mp),pd2(mp),rsrf(mr),zsrf(mr),
@@ -35,13 +35,13 @@ c
       call setup(mr,mz,nz,mp,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,dir,dr,
      >   dz,pi,eta,eps,omega,rmax,c0,k0,ci,r,rp,rs,rb,zb,cw,cb,rhob,
      >   attn,alpw,alpb,ksq,ksqw,ksqb,f1,f2,f3,u,v,r1,r2,r3,s1,s2,s3,
-     >   pd1,pd2,tlg,rsrf,zsrf,izsrf,isrf,attw)
+     >   pd1,pd2,tlg,rsrf,zsrf,izsrf,isrf)
 c
 c     March the acoustic field out in range.
 c
     1 call updat(mr,mz,nz,mp,np,iz,ib,dr,dz,eta,omega,rmax,c0,k0,ci,r,
      >   rp,rs,rb,zb,cw,cb,rhob,attn,alpw,alpb,ksq,ksqw,ksqb,f1,f2,f3,
-     >   r1,r2,r3,s1,s2,s3,pd1,pd2,rsrf,zsrf,izsrf,isrf,attw)
+     >   r1,r2,r3,s1,s2,s3,pd1,pd2,rsrf,zsrf,izsrf,isrf)
       call solve(mz,nz,mp,np,iz,u,v,r1,r2,r3,s1,s2,s3)
       r=r+dr
       call outpt(mz,mdr,ndr,ndz,iz,nzplt,lz,ir,dir,eps,r,f3,u,tlg)
@@ -59,13 +59,13 @@ c
       subroutine setup(mr,mz,nz,mp,np,ns,mdr,ndr,ndz,iz,nzplt,lz,ib,ir,
      >   dir,dr,dz,pi,eta,eps,omega,rmax,c0,k0,ci,r,rp,rs,rb,zb,cw,cb,
      >   rhob,attn,alpw,alpb,ksq,ksqw,ksqb,f1,f2,f3,u,v,r1,r2,r3,s1,s2,
-     >   s3,pd1,pd2,tlg,rsrf,zsrf,izsrf,isrf,attw)
+     >   s3,pd1,pd2,tlg,rsrf,zsrf,izsrf,isrf)
       complex ci,u(mz),v(mz),ksq(mz),ksqb(mz),r1(mz,mp),r2(mz,mp),
      >   r3(mz,mp),s1(mz,mp),s2(mz,mp),s3(mz,mp),pd1(mp),pd2(mp),
      >   ksqw(mz)
       real k0,rb(mr),zb(mr),cw(mz),cb(mz),rhob(mz),attn(mz),alpw(mz),
      >   alpb(mz),f1(mz),f2(mz),f3(mz),tlg(mz),rsrf(mr),
-     >   zsrf(mr),attw(mz)
+     >   zsrf(mr)
 c
       read(1,*)
       read(1,*)freq,zs,zr
@@ -144,7 +144,7 @@ c
 c     The initial profiles and starting field.
 c
       call profl(mz,nz,ci,dz,eta,omega,rmax,c0,k0,rp,cw,cb,rhob,attn,
-     >   alpw,alpb,ksqw,ksqb,attw)
+     >   alpw,alpb,ksqw,ksqb)
       call selfs(mz,nz,mp,np,ns,iz,zs,dr,dz,pi,c0,k0,rhob,alpw,alpb,ksq,
      >   ksqw,ksqb,f1,f2,f3,u,v,r1,r2,r3,s1,s2,s3,pd1,pd2,izsrf)
       call outpt(mz,mdr,ndr,ndz,iz,nzplt,lz,ir,dir,eps,r,f3,u,tlg)
@@ -161,13 +161,11 @@ c
 c     Set up the profiles.
 c
       subroutine profl(mz,nz,ci,dz,eta,omega,rmax,c0,k0,rp,cw,cb,rhob,
-     >   attn,alpw,alpb,ksqw,ksqb,attw)
+     >   attn,alpw,alpb,ksqw,ksqb)
       complex ci,ksqb(mz),ksqw(mz)
-      real k0,cw(mz),cb(mz),rhob(mz),attn(mz),alpw(mz),alpb(mz),
-     >   attw(mz)
+      real k0,cw(mz),cb(mz),rhob(mz),attn(mz),alpw(mz),alpb(mz)
 c
       call zread(mz,nz,dz,cw)
-      call zread(mz,nz,dz,attw)
       call zread(mz,nz,dz,cb)
       call zread(mz,nz,dz,rhob)
       call zread(mz,nz,dz,attn)
@@ -175,8 +173,7 @@ c
       read(1,*,end=1)rp
 c
     1 do 2 i=1,nz+2
-c      ksqw(i)=(omega/cw(i))**2-k0**2
-      ksqw(i)=((omega/cw(i))*(1.0+ci*eta*attw(i)))**2-k0**2
+      ksqw(i)=(omega/cw(i))**2-k0**2
       ksqb(i)=((omega/cb(i))*(1.0+ci*eta*attn(i)))**2-k0**2
       alpw(i)=sqrt(cw(i)/c0)
       alpb(i)=sqrt(rhob(i)*cb(i)/c0)
@@ -330,12 +327,11 @@ c     Matrix updates.
 c
       subroutine updat(mr,mz,nz,mp,np,iz,ib,dr,dz,eta,omega,rmax,c0,k0,
      >   ci,r,rp,rs,rb,zb,cw,cb,rhob,attn,alpw,alpb,ksq,ksqw,ksqb,f1,f2,
-     >   f3,r1,r2,r3,s1,s2,s3,pd1,pd2,rsrf,zsrf,izsrf,isrf,attw)
+     >   f3,r1,r2,r3,s1,s2,s3,pd1,pd2,rsrf,zsrf,izsrf,isrf)
       complex ci,ksq(mz),ksqb(mz),r1(mz,mp),r2(mz,mp),r3(mz,mp),
      >   s1(mz,mp),s2(mz,mp),s3(mz,mp),pd1(mp),pd2(mp),ksqw(mz)
       real k0,rb(mr),zb(mr),attn(mz),cb(mz),rhob(mz),cw(mz),
-     >   f1(mz),f2(mz),f3(mz),alpw(mz),alpb(mz),rsrf(mr),zsrf(mr),
-     >   attw(mz)
+     >   f1(mz),f2(mz),f3(mz),alpw(mz),alpb(mz),rsrf(mr),zsrf(mr)
 c
 c     Varying bathymetry.
 c
@@ -360,7 +356,7 @@ c     Varying profiles.
 c
       if(r.ge.rp)then
       call profl(mz,nz,ci,dz,eta,omega,rmax,c0,k0,rp,cw,cb,rhob,attn,
-     >   alpw,alpb,ksqw,ksqb,attw)
+     >   alpw,alpb,ksqw,ksqb)
       call matrc(mz,nz,mp,np,iz,iz,dz,k0,rhob,alpw,alpb,ksq,ksqw,ksqb,
      >   f1,f2,f3,r1,r2,r3,s1,s2,s3,pd1,pd2,izsrf)
       end if
