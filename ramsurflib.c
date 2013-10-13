@@ -546,6 +546,7 @@ void zread( float const* data, size_t mz, int nz, float dz, float prof[mz]) {
         i=1.5+zi/dz;
         if(i == iold)i=i+1;
         prof[i-1]=profi;
+        assert(i-1<mz);
         iold=i;
     }
 
@@ -1049,6 +1050,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
     *dir=ri-(float)(*ir);
     *k0=*omega/(rsurf->c0);
     *nz=zmax/(*dz)-0.5;
+    assert(*nz +2 < mz);
     *nzplt=zmplt/(*dz)-0.5;
     //
     float z=zsrf[0];
@@ -1072,7 +1074,7 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
     }
 
     *lz=0;
-    for(int i=(*ndz); i<(*nzplt); i+=(*ndz)) {
+    for(int i=(*ndz); i<=(*nzplt); i+=(*ndz)) {
         *lz=*lz+1;
     }
 
@@ -1094,13 +1096,33 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
     //
 }
 
+static
+void fix_zmax(float *zmax, float**data) {
+    while(*data) {
+        float * iter = *data;
+        while(*iter != -1.f) iter +=2;
+        if(*zmax < iter[-2]) {
+            *zmax = iter[-2];
+        }
+        ++data;
+    }
+}
+
 int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
 {
     float k0;
     int errorCode;
+    float lzmax = rsurf->zmax;
+    fix_zmax(&lzmax, rsurf->cw);
+    fix_zmax(&lzmax, rsurf->cb);
+    fix_zmax(&lzmax, rsurf->rhob);
+    fix_zmax(&lzmax, rsurf->attn);
+
     size_t mr = rsurf->mr,
-           mz = rsurf->zmax / rsurf->dz + 1.5f,
+           mz = lzmax / rsurf->dz + 2.5f,
            mp = rsurf->np;
+
+
 
     output_t out;
     output_init(&out);
