@@ -16,6 +16,13 @@ The aim of this project is to make these program run faster by using several
 optimization techniques, while keeping the original behavior. This implies a
 move to the C language.
 
+Download
+--------
+
+Download the latest release with the following link: ramsurf-1.0.tar.gz_
+
+.. _ramsurf-1.0.tar.gz: https://github.com/quiet-oceans/ramsurf/blob/releases/ramsurf-1.0.tar.gz?raw=true 
+
 Building
 --------
 
