@@ -370,7 +370,7 @@ void deriv(int n, float sig, double alp,
     dh1[0][1]=sig*0.5;
     double exp1 = -0.5;
     dh2[0][0]=alp;
-    dh2[0][1]=alp;
+    dh2[0][1]=0.;
     double exp2=-1.0;
     dh3[0][0]=-2.0*nu;
     dh3[0][1]=0.;
