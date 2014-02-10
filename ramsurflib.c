@@ -1124,6 +1124,13 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
     fix_zmax(&lzmax, rsurf->rhob);
     fix_zmax(&lzmax, rsurf->attn);
 
+#ifdef __SSE3__
+    // this sets the "flush to zero" and "denormals are zero" bits (15,6) in the MXCSR register.
+    // otherwise we get very bad timings...
+    int flush_mode = _MM_GET_FLUSH_ZERO_MODE( );
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+#endif
+
     size_t mr = rsurf->mr,
            mz = lzmax / rsurf->dz + 2.5f,
            mp = rsurf->np;
@@ -1197,6 +1204,9 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
 
     // deallocation step 
     free(oscratch);
+#ifdef __SSE3__
+    _MM_SET_FLUSH_ZERO_MODE(flush_mode);
+#endif
 
     return errorCode;
 }
