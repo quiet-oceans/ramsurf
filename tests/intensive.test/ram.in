@@ -1,0 +1,24 @@
+header line
+2048.00	5 1000	1.0	frequency (Hz), source depth (m), tl.line depth (m)
+400000.	10	40	domain range (m), computation step (m), mesure step (comp.step)
+1000	0.2 10	1000	domain depth (m), computation step (m), mesure step (comp.step), last mesure depth (m)
+1500.000000	4	1	0.000000	reference celerity, #PADE, #stability constraints, radius of constraint
+0.0	0.0	surface depth (range, depth) (m)
+-1	-1
+   0.0000   1000.		bathymetry
+400000.000   900
+-1	-1
+   0.0000	1500
+  333.000	1500
+  334.000	1510
+  666.000	1510
+  667.000	1500
+ 1000.000	1500
+-1	-1
+0.0000000	3000.0000000
+-1	-1
+0.0000000	2.
+-1	-1
+0.0000000	0.900
+21	100.00
+-1	-1
