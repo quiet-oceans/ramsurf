@@ -830,7 +830,7 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
 static
 void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
         float dr, float dz, float omega, float k0, 
-        float r, float *rp, float rs,
+        float r, float *rp, float *rs,
         float rb[mr], float zb[mr] , float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz],
         fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
@@ -871,8 +871,9 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
     //
     //     Turn off the stability constraints.
     //
-    if(r>=rs) {
+    if(r>=*rs) {
         int ns=0;
+        *rs=2.f*(rsurf->rmax);
         epade(mp, np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
@@ -1177,7 +1178,7 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
         //
         while (r < rsurf->rmax) {
             updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, k0, r, 
-                    &rp, rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
+                    &rp, &rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
