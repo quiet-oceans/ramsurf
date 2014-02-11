@@ -1,6 +1,7 @@
-check_PROGRAMS=ramcmp
+check_PROGRAMS=ramcmp ramdump
 
 ramcmp_SOURCES=ramcmp.f
+ramdump_SOURCES=ramdump.f
 
 TESTS=decreasing_slop.sh\
 		  flat.sh\
