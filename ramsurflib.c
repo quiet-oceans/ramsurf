@@ -796,31 +796,36 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
     //
     for(int j=0; j<np; j++) {
         for(int i=1;i<nz+1; i++) {
-            double treal = r2[j][i][0]-(r1[j][i][0]*r3[j][i-1][0]-r1[j][i][1]*r3[j][i-1][1]);
-            double timag = r2[j][i][1]-(r1[j][i][1]*r3[j][i-1][0]+r1[j][i][0]*r3[j][i-1][1]);
-            double tnorm= treal*treal + timag*timag;
-            rfact[0]= treal/tnorm;
-            rfact[1]= -timag/tnorm;
+            float denomr = (r2[j][i][0] - (r1[j][i][0] * r3[j][i-1][0] - r1[j][i][1] * r3[j][i-1][1])),
+                  denomi = (r2[j][i][1] - (r1[j][i][0] * r3[j][i-1][1] + r1[j][i][1] * r3[j][i-1][0]));
 
-            double tmp = r1[j][i][0];
-            r1[j][i][0]=r1[j][i][0]*rfact[0]-r1[j][i][1]*rfact[1];
-            r1[j][i][1]=r1[j][i][1]*rfact[0]+tmp*rfact[1];
+            // Any other form of this computation yields slightly different results,
+            // but this ends up with very different energy loss.
+            fcomplex rfact = 1.f/(denomr + I*denomi);
+            float rfactr = crealf(rfact),
+                  rfacti = cimagf(rfact);
 
-            tmp = r3[j][i][0];
-            r3[j][i][0]=r3[j][i][0]*rfact[0]-r3[j][i][1]*rfact[1];
-            r3[j][i][1]=r3[j][i][1]*rfact[0]+tmp*rfact[1];
+            float tr1 = r1[j][i][0];
+            r1[j][i][0]= tr1 * rfactr - r1[j][i][1] * rfacti;
+            r1[j][i][1]= tr1 * rfacti + r1[j][i][1] * rfactr;
 
-            tmp=s1[j][i][0];
-            s1[j][i][0]=s1[j][i][0]*rfact[0]-s1[j][i][1]*rfact[1];
-            s1[j][i][1]=s1[j][i][1]*rfact[0]+tmp*rfact[1];
+            float tr3 = r3[j][i][0];
+            r3[j][i][0]= tr3 * rfactr - r3[j][i][1] * rfacti;
+            r3[j][i][1]= tr3 * rfacti + r3[j][i][1] * rfactr;
 
-            tmp=s2[j][i][0];
-            s2[j][i][0]=s2[j][i][0]*rfact[0]-s2[j][i][1]*rfact[1];
-            s2[j][i][1]=s2[j][i][1]*rfact[0]+tmp*rfact[1];
+            float ts1 = s1[j][i][0];
+            s1[j][i][0]= ts1 * rfactr - s1[j][i][1] * rfacti;
+            s1[j][i][1]= ts1 * rfacti + s1[j][i][1] * rfactr;
 
-            tmp=s3[j][i][0];
-            s3[j][i][0]=s3[j][i][0]*rfact[0]-s3[j][i][1]*rfact[1];
-            s3[j][i][1]=s3[j][i][1]*rfact[0]+tmp*rfact[1];
+            float ts2 = s2[j][i][0];
+            s2[j][i][0]= ts2 * rfactr - s2[j][i][1] * rfacti;
+            s2[j][i][1]= ts2 * rfacti + s2[j][i][1] * rfactr;
+
+
+            float ts3 = s3[j][i][0];
+            s3[j][i][0]= ts3 * rfactr - s3[j][i][1] * rfacti;
+            s3[j][i][1]= ts3 * rfacti + s3[j][i][1] * rfactr;
+
         }
     }
 }
