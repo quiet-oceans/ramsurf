@@ -1,6 +1,7 @@
-check_PROGRAMS=ramcmp
+check_PROGRAMS=ramcmp ramdump
 
 ramcmp_SOURCES=ramcmp.f
+ramdump_SOURCES=ramdump.f
 
 TESTS=decreasing_slop.sh\
 		  flat.sh\
@@ -9,7 +10,8 @@ TESTS=decreasing_slop.sh\
 		  flat_pade.sh\
 		  flat_limit.sh\
 		  increasing_slop.sh\
-		  flat_2ssps.sh
+		  flat_2ssps.sh\
+		  intensive.sh
 
 EXTRA_DIST=decreasing_slop.test\
 		  flat.test\
@@ -18,18 +20,20 @@ EXTRA_DIST=decreasing_slop.test\
 		  flat_pade.test\
 		  flat_limit.test\
 		  increasing_slop.test\
-		  flat_2ssps.test
+		  flat_2ssps.test\
+		  intensive.test
 
 SUFFIXES=.test .sh
 
 .test.sh:$(srcdir)/Makefile.am
 	echo '#!/bin/sh' > $@
 	echo 'set -e' 	>> $@
-	echo 'chmod -R u+rwx `basename $<`.d || true' >> $@
-	echo 'rm -rf `basename $<`.d' >> $@
-	echo 'cp -r $(srcdir)/`basename $<` `basename $<`.d' >> $@
-	echo 'chmod -R u+rwx `basename $<`.d' >> $@
-	echo 'cd `basename $<`.d' >> $@
+	echo 'TARGET="`basename $<`"' >> $@
+	echo 'test ! -d $$TARGET.d || chmod -R u+rwx $$TARGET.d' >> $@
+	echo 'rm -rf $$TARGET' >> $@
+	echo 'cp -r $(srcdir)/$$TARGET $$TARGET.d' >> $@
+	echo 'chmod -R u+rwx $$TARGET.d' >> $@
+	echo 'cd $$TARGET.d' >> $@
 	echo '$(abs_top_builddir)/ramsurf1.5' >> $@
 	echo 'mv tl.grid ref.grid' >> $@
 	echo 'mv tl.line ref.line' >> $@

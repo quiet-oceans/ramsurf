@@ -370,7 +370,7 @@ void deriv(int n, float sig, double alp,
     dh1[0][1]=sig*0.5;
     double exp1 = -0.5;
     dh2[0][0]=alp;
-    dh2[0][1]=alp;
+    dh2[0][1]=0.;
     double exp2=-1.0;
     dh3[0][0]=-2.0*nu;
     dh3[0][1]=0.;
@@ -796,31 +796,36 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
     //
     for(int j=0; j<np; j++) {
         for(int i=1;i<nz+1; i++) {
-            double treal = r2[j][i][0]-(r1[j][i][0]*r3[j][i-1][0]-r1[j][i][1]*r3[j][i-1][1]);
-            double timag = r2[j][i][1]-(r1[j][i][1]*r3[j][i-1][0]+r1[j][i][0]*r3[j][i-1][1]);
-            double tnorm= treal*treal + timag*timag;
-            rfact[0]= treal/tnorm;
-            rfact[1]= -timag/tnorm;
+            float denomr = (r2[j][i][0] - (r1[j][i][0] * r3[j][i-1][0] - r1[j][i][1] * r3[j][i-1][1])),
+                  denomi = (r2[j][i][1] - (r1[j][i][0] * r3[j][i-1][1] + r1[j][i][1] * r3[j][i-1][0]));
 
-            double tmp = r1[j][i][0];
-            r1[j][i][0]=r1[j][i][0]*rfact[0]-r1[j][i][1]*rfact[1];
-            r1[j][i][1]=r1[j][i][1]*rfact[0]+tmp*rfact[1];
+            // Any other form of this computation yields slightly different results,
+            // but this ends up with very different energy loss.
+            fcomplex rfact = 1.f/(denomr + I*denomi);
+            float rfactr = crealf(rfact),
+                  rfacti = cimagf(rfact);
 
-            tmp = r3[j][i][0];
-            r3[j][i][0]=r3[j][i][0]*rfact[0]-r3[j][i][1]*rfact[1];
-            r3[j][i][1]=r3[j][i][1]*rfact[0]+tmp*rfact[1];
+            float tr1 = r1[j][i][0];
+            r1[j][i][0]= tr1 * rfactr - r1[j][i][1] * rfacti;
+            r1[j][i][1]= tr1 * rfacti + r1[j][i][1] * rfactr;
 
-            tmp=s1[j][i][0];
-            s1[j][i][0]=s1[j][i][0]*rfact[0]-s1[j][i][1]*rfact[1];
-            s1[j][i][1]=s1[j][i][1]*rfact[0]+tmp*rfact[1];
+            float tr3 = r3[j][i][0];
+            r3[j][i][0]= tr3 * rfactr - r3[j][i][1] * rfacti;
+            r3[j][i][1]= tr3 * rfacti + r3[j][i][1] * rfactr;
 
-            tmp=s2[j][i][0];
-            s2[j][i][0]=s2[j][i][0]*rfact[0]-s2[j][i][1]*rfact[1];
-            s2[j][i][1]=s2[j][i][1]*rfact[0]+tmp*rfact[1];
+            float ts1 = s1[j][i][0];
+            s1[j][i][0]= ts1 * rfactr - s1[j][i][1] * rfacti;
+            s1[j][i][1]= ts1 * rfacti + s1[j][i][1] * rfactr;
 
-            tmp=s3[j][i][0];
-            s3[j][i][0]=s3[j][i][0]*rfact[0]-s3[j][i][1]*rfact[1];
-            s3[j][i][1]=s3[j][i][1]*rfact[0]+tmp*rfact[1];
+            float ts2 = s2[j][i][0];
+            s2[j][i][0]= ts2 * rfactr - s2[j][i][1] * rfacti;
+            s2[j][i][1]= ts2 * rfacti + s2[j][i][1] * rfactr;
+
+
+            float ts3 = s3[j][i][0];
+            s3[j][i][0]= ts3 * rfactr - s3[j][i][1] * rfacti;
+            s3[j][i][1]= ts3 * rfacti + s3[j][i][1] * rfactr;
+
         }
     }
 }
@@ -830,7 +835,7 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
 static
 void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
         float dr, float dz, float omega, float k0, 
-        float r, float *rp, float rs,
+        float r, float *rp, float *rs,
         float rb[mr], float zb[mr] , float cw[mz], float cb[mz], float rhob[mz],
         float attn[mz], float alpw[mz], float alpb[mz],
         fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
@@ -871,8 +876,9 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
     //
     //     Turn off the stability constraints.
     //
-    if(r>=rs) {
+    if(r>=*rs) {
         int ns=0;
+        *rs=2.f*(rsurf->rmax);
         epade(mp, np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
         matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
                 f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
@@ -1118,6 +1124,13 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
     fix_zmax(&lzmax, rsurf->rhob);
     fix_zmax(&lzmax, rsurf->attn);
 
+#ifdef __SSE3__
+    // this sets the "flush to zero" and "denormals are zero" bits (15,6) in the MXCSR register.
+    // otherwise we get very bad timings...
+    int flush_mode = _MM_GET_FLUSH_ZERO_MODE( );
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+#endif
+
     size_t mr = rsurf->mr,
            mz = lzmax / rsurf->dz + 2.5f,
            mp = rsurf->np;
@@ -1177,7 +1190,7 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
         //
         while (r < rsurf->rmax) {
             updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, k0, r, 
-                    &rp, rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
+                    &rp, &rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
@@ -1191,6 +1204,9 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
 
     // deallocation step 
     free(oscratch);
+#ifdef __SSE3__
+    _MM_SET_FLUSH_ZERO_MODE(flush_mode);
+#endif
 
     return errorCode;
 }

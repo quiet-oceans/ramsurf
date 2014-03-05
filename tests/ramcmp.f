@@ -1,7 +1,7 @@
       program ramdec
       real tl(1000,1000)
       real rtl(1000,1000)
-      threshold = 6.8
+      threshold = .5
       open(unit=2,status='unknown',file='ref.grid', form='unformatted')
       open(unit=3,status='unknown',file='tl.grid', form='unformatted')
       read(2)nry
