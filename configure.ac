@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.64])
 AC_INIT([ramsurf], [1.0], [serge.guelton@quiet-oceans.com])
 AC_CONFIG_SRCDIR([ramsurflib.c])
 AC_CONFIG_HEADERS([config.h])
