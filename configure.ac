@@ -10,7 +10,9 @@ AM_INIT_AUTOMAKE([foreign 1.0])
 
 # Checks for programs.
 AC_PROG_CC_C99
+AS_IF([test "x$CC" = "x"],[AC_MSG_ERROR(["no viable C compiler found"])])
 AC_PROG_F77
+AS_IF([test "x$F77" = "x"],[AC_MSG_ERROR(["no viable fortran compiler found"])])
 AC_PROG_RANLIB
 
 # Checks for libraries.
