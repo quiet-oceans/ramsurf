@@ -30,7 +30,6 @@ SUFFIXES=.test .sh
 	echo 'set -e' 	>> $@
 	echo 'TARGET="`basename $<`"' >> $@
 	echo 'test ! -d $$TARGET.d || chmod -R u+rwx $$TARGET.d' >> $@
-	echo 'rm -rf $$TARGET' >> $@
 	echo 'cp -r $(srcdir)/$$TARGET $$TARGET.d' >> $@
 	echo 'chmod -R u+rwx $$TARGET.d' >> $@
 	echo 'cd $$TARGET.d' >> $@
