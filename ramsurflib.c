@@ -80,11 +80,14 @@ typedef struct {
 } output_t;
 
 static
-void output_init(output_t* o) {
+int output_init(output_t* o) {
     static const int init_size = 32;
     o->buffer = malloc(sizeof(*o->buffer)*init_size);
+    if (!o->buffer)
+        return NOT_ENOUGH_MEMORY;
     o->current = o->buffer;
     o->end = o->current + init_size;
+    return 0;
 }
 static
 void output_destroy(output_t* o) {
@@ -99,6 +102,8 @@ float** output_release(output_t* o) {
     int old_size = o->current - o->buffer;
     int new_size = old_size +1 ;
     o->buffer = realloc(o->buffer, new_size * sizeof(*o->buffer));
+    if (!o->buffer)
+        longjmp(exception_env, NOT_ENOUGH_MEMORY);
     o->buffer[old_size] = NULL;
     return o-> buffer;
 }
@@ -110,12 +115,14 @@ void output_push_back( output_t* o, float const * data, int count, float r) {
         int new_size = old_size << 1;
         o->buffer = realloc(o->buffer, new_size * sizeof(*o->buffer));
         if(!o->buffer) {
-    	    longjmp(exception_env, NOT_ENOUGH_MEMORY);
+            longjmp(exception_env, NOT_ENOUGH_MEMORY);
         }
         o->current = o->buffer + old_size;
         o->end = o->buffer + new_size;
     }
     *o->current = malloc((1+count) * sizeof(*data));
+    if (!(*o->current))
+        longjmp(exception_env, NOT_ENOUGH_MEMORY);
     (*o->current)[0] = r;                                   // first float is the range
     memcpy((*o->current) + 1, data, count * sizeof(*data)); // others are the data
     ++o->current;
@@ -1138,72 +1145,85 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
 
 
     output_t out;
-    output_init(&out);
+    errorCode = output_init(&out);
+    if (errorCode)
+        goto reset_flush_mode;
 
     // allocation step 
     void *scratch = malloc(sizeof(float) * ( 2*mz*3 + 2*mz*mp*3 + 2*mp*2 + mr*4 + mz *10 + 2*mz*1 + 2*mp*mz*3));
+    if (!scratch) {
+        errorCode = NOT_ENOUGH_MEMORY;
+        goto clear_output;
+    }
     void *oscratch = scratch;
-    fcomplex (*ksq)[mz] = scratch; scratch += sizeof(float) * 2*mz;
-    fcomplex (*ksqb)[mz] = scratch; scratch += sizeof(float) * 2*mz;
-    fcomplex (*ksqw)[mz] = scratch; scratch += sizeof(float) * 2*mz;
-    float (*r1)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-    float (*r2)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-    float (*r3)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-    fcomplex (*pd1)[mp]= scratch; scratch += sizeof(float) * 2*mp;
-    fcomplex (*pd2)[mp]= scratch; scratch += sizeof(float) * 2*mp;
-    float (*rb)[mr]= scratch; scratch += sizeof(float) * mr;
-    float (*zb)[mr]= scratch; scratch += sizeof(float) * mr;
-    float (*rsrf)[mr]= scratch; scratch += sizeof(float) * mr;
-    float (*zsrf)[mr]= scratch; scratch += sizeof(float) * mr;
-    float (*cw)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*cb)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*rhob)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*attn)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*alpw)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*alpb)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*f1)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*f2)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*f3)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*tlg)[mz]= scratch; scratch += sizeof(float) * mz;
-    float (*u)[mz][2]= scratch; scratch += sizeof(float) * 2*mz;
 
-    float (*s1)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-    float (*s2)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-    float (*s3)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
-
-    int nz,np,ns,mdr,ndr,ndz,iz,nzplt,ib,ir,izsrf,isrf;
-    size_t profl_index;
-    float omega, r, rp, rs, dr, dz, dir;
-    if(!(errorCode=setjmp(exception_env)))
+    // We use brackets here to limit the scope of arrays declared in it.
+    // Not doing so prevents us to jump to the cleaning section in case of
+    // bad memory allocation.
     {
-        setup(rsurf, &profl_index, &out, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
-                &nzplt, lz, &ib, &ir,
-                &dir, &dr, &dz, &omega, 
-                &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
-                *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, 
-                *f1, *f2, *f3, 
-                *u, 
-                *r1, *r2, *r3, *s1, *s2, *s3, 
-                *pd1, *pd2, *tlg, *rsrf, *zsrf, &izsrf, &isrf);
-        //
-        //     March the acoustic field out in range.
-        //
-        while (r < rsurf->rmax) {
-            updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, k0, r, 
-                    &rp, &rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
-                    *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
-            solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
-            r=r+dr;
-            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, *lz, ir, dir, r, *f3, *u, *tlg);
-        }
-        if(errorCode)
-            output_destroy(&out);
-        else
+        fcomplex (*ksq)[mz] = scratch; scratch += sizeof(float) * 2*mz;
+        fcomplex (*ksqb)[mz] = scratch; scratch += sizeof(float) * 2*mz;
+        fcomplex (*ksqw)[mz] = scratch; scratch += sizeof(float) * 2*mz;
+        float (*r1)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+        float (*r2)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+        float (*r3)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+        fcomplex (*pd1)[mp]= scratch; scratch += sizeof(float) * 2*mp;
+        fcomplex (*pd2)[mp]= scratch; scratch += sizeof(float) * 2*mp;
+        float (*rb)[mr]= scratch; scratch += sizeof(float) * mr;
+        float (*zb)[mr]= scratch; scratch += sizeof(float) * mr;
+        float (*rsrf)[mr]= scratch; scratch += sizeof(float) * mr;
+        float (*zsrf)[mr]= scratch; scratch += sizeof(float) * mr;
+        float (*cw)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*cb)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*rhob)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*attn)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*alpw)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*alpb)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*f1)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*f2)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*f3)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*tlg)[mz]= scratch; scratch += sizeof(float) * mz;
+        float (*u)[mz][2]= scratch; scratch += sizeof(float) * 2*mz;
+
+        float (*s1)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+        float (*s2)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+        float (*s3)[mp][mz][2]= scratch; scratch += sizeof(float) * 2*mz*mp;
+
+        int nz,np,ns,mdr,ndr,ndz,iz,nzplt,ib,ir,izsrf,isrf;
+        size_t profl_index;
+        float omega, r, rp, rs, dr, dz, dir;
+        if(!(errorCode=setjmp(exception_env)))
+        {
+            setup(rsurf, &profl_index, &out, fdline, mr, mz, mp, &nz, &np, &ns, &mdr, &ndr, &ndz, &iz,
+                    &nzplt, lz, &ib, &ir,
+                    &dir, &dr, &dz, &omega, 
+                    &k0, &r, &rp, &rs, *rb, *zb, *cw, *cb, *rhob, 
+                    *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, 
+                    *f1, *f2, *f3, 
+                    *u, 
+                    *r1, *r2, *r3, *s1, *s2, *s3, 
+                    *pd1, *pd2, *tlg, *rsrf, *zsrf, &izsrf, &isrf);
+            //
+            //     March the acoustic field out in range.
+            //
+            while (r < rsurf->rmax) {
+                updat(rsurf, &profl_index, mr, mz, mp, nz, np, &iz, &ib, dr, dz, omega, k0, r, 
+                        &rp, &rs, *rb, *zb, *cw, *cb, *rhob, *attn, *alpw, *alpb, *ksq, *ksqw, *ksqb, *f1, *f2, *f3, 
+                        *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
+                solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
+                r=r+dr;
+                outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, *lz, ir, dir, r, *f3, *u, *tlg);
+            }
             *ogrid = output_release(&out);
+        }
     }
 
     // deallocation step 
     free(oscratch);
+clear_output:
+    if (errorCode)
+        output_destroy(&out);
+reset_flush_mode:
 #ifdef __SSE3__
     _MM_SET_FLUSH_ZERO_MODE(flush_mode);
 #endif
