@@ -568,9 +568,24 @@ void zread( float const* data, size_t mz, int nz, float dz, float prof[mz]) {
 //     Set up the profiles.
 //
 static
-void profl( ramsurf_t const* rsurf, size_t profl_index,
-        size_t mz, int nz, float dz, float omega, float k0, float *rp, float cw[mz], float cb[mz], float rhob[mz],
-        float attn[mz], float alpw[mz], float alpb[mz], float ksqw[mz][2], float ksqb[mz][2]) {
+void profl(ramsurf_t const * const rsurf,       //< ramsurf input
+           size_t const            profl_index, //< Index of the profile to extract
+           size_t const            mz,          //< Size of array containing the extracted profiles
+           int const               nz,          //< Number of depth points for the profile
+           float const             dz,          //< depth step
+           float const             omega,       //< Angular frequency (2 * PI * frequency)
+           float const             k0,          //< Wavenumber (omega / reference_celerity)
+           // OUT parameters
+           float * const           rp,          //< Boundary of the extracted profile
+           float                   cw[mz],      //< Celerity profile in water
+           float                   cb[mz],      //< Celerity profile in bottom
+           float                   rhob[mz],    //< Density profile in bottom
+           float                   attn[mz],    //< Attenuation profile in the bottom
+           float                   alpw[mz],    //< Alpha profile in water
+           float                   alpb[mz],    //< Alpha profile in bottom
+           float                   ksqw[mz][2], //< Squared wavenumber in water
+           float                   ksqb[mz][2]  //< Squared wavenumber in bottom
+          ) {
     //
     const float eta=1.0/(40.0*M_PI*log10(exp(1.0)));
     zread(rsurf->cw[profl_index], mz, nz,dz,cw);
@@ -596,11 +611,32 @@ void profl( ramsurf_t const* rsurf, size_t profl_index,
 //     The tridiagonal matrices.
 //
 static
-void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float dz, float k0, float rhob[mz], float alpw[mz], float alpb[mz], float ksq[mz][2], float ksqw[mz][2], 
-        float ksqb[mz][2], float f1[mz], float f2[mz], float f3[mz],
-        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
-        float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
-        float pd1[mp][2], float pd2[mz][2], int izsrf) {
+void matrc(size_t const mz,
+           size_t const mp,
+           int const    nz,
+           int const    np,
+           int const    iz,
+           float const  dz,
+           float const  k0,
+           float const  rhob[mz],    //< ^
+           float const  alpw[mz],    //< |
+           float const  alpb[mz],    //< | Profile description
+           float        ksq[mz][2],  //< |
+           float const  ksqw[mz][2], //< |
+           float const  ksqb[mz][2], //< v
+           float        f1[mz],
+           float        f2[mz],
+           float        f3[mz],
+           float        r1[mp][mz][2],
+           float        r2[mp][mz][2],
+           float        r3[mp][mz][2],
+           float        s1[mp][mz][2],
+           float        s2[mp][mz][2],
+           float        s3[mp][mz][2],
+           float        pd1[mp][2],
+           float        pd2[mz][2],
+           int const    izsrf
+          ) {
     float d1[4] __attribute__((aligned(16))),d2[4] __attribute__((aligned(16))),d3[4] __attribute__((aligned(16))),rfact[2];
     //
     float a1=k0*k0/6.0;
@@ -833,17 +869,49 @@ void matrc(size_t mz, size_t mp, int const nz, int const np, int const iz, float
 //     Matrix updates.
 //
 static
-void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, size_t mp, int nz, int np, int *iz, int *ib,
-        float dr, float dz, float omega, float k0, 
-        float r, float *rp, float *rs,
-        float rb[mr], float zb[mr] , float cw[mz], float cb[mz], float rhob[mz],
-        float attn[mz], float alpw[mz], float alpb[mz],
-        fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
-        float f1[mz], float f2[mz], float f3[mz],
-        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
-        float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
-        fcomplex pd1[mp], fcomplex pd2[mp],
-        float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
+void updat(ramsurf_t const * const rsurf,
+           size_t * const          profl_index,
+           size_t const            mr,
+           size_t const            mz,
+           size_t const            mp,
+           int const               nz,
+           int const               np,
+           int * const             iz,
+           int * const             ib,
+           float const             dr,
+           float const             dz,
+           float const             omega,
+           float const             k0, 
+           float const             r,
+           float * const           rp,
+           float * const           rs,
+           float const             rb[mr], //< ^ Bathymetry description
+           float const             zb[mr], //< v
+           float                   cw[mz],   //< ^
+           float                   cb[mz],   //< |
+           float                   rhob[mz], //< |
+           float                   attn[mz], //< |
+           float                   alpw[mz], //< | Placeholder for profile description
+           float                   alpb[mz], //< |
+           fcomplex                ksq[mz],  //< |
+           fcomplex                ksqw[mz], //< |
+           fcomplex                ksqb[mz], //< v
+           float                   f1[mz],
+           float                   f2[mz],
+           float                   f3[mz],
+           float                   r1[mp][mz][2],
+           float                   r2[mp][mz][2],
+           float                   r3[mp][mz][2],
+           float                   s1[mp][mz][2],
+           float                   s2[mp][mz][2],
+           float                   s3[mp][mz][2],
+           fcomplex                pd1[mp],
+           fcomplex                pd2[mp],
+           float const             rsrf[mr], //< ^ Surface description
+           float const             zsrf[mr], //< v
+           int * const             izsrf,
+           int * const             isrf
+          ) {
     //
     //     Varying bathymetry.
     //
@@ -861,7 +929,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
     *iz=max(2,*iz);
     *iz=min(nz,*iz);
     if((*iz!=jz) || (*izsrf != jzsrf))
-        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
                 f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
     //     Varying profiles.
@@ -870,7 +938,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         ++*profl_index;
         profl(rsurf, *profl_index, mz, nz, dz, omega, k0, rp, cw, cb, rhob, attn, 
                 alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
-        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
                 f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
@@ -880,7 +948,7 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
         int ns=0;
         *rs=2.f*(rsurf->rmax);
         epade(mp, np, ns, 1, k0, dr, (float (*)[2])pd1, (float (*)[2])pd2);
-        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+        matrc(mz, mp, nz, np, *iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
                 f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     }
     //
@@ -890,8 +958,20 @@ void updat( ramsurf_t const* rsurf, size_t *profl_index, size_t mr, size_t mz, s
 //     Output transmission loss.
 //
 static
-void  outpt( output_t* out, FILE* fdline, size_t mz, int *mdr, int ndr, int ndz, int nzplt, int lz, int ir, float dir, float r,
-        float f3[mz], float u[mz][2], float tlg[mz]) {
+void  outpt(output_t * const out,
+            FILE * const     fdline,
+            size_t const     mz,
+            int * const      mdr,
+            int const        ndr,
+            int const        ndz,
+            int const        nzplt,
+            int const        lz,
+            int const        ir,
+            float const      dir,
+            float const      r,
+            float const      f3[mz],
+            float const      u[mz][2],
+            float            tlg[mz]) {
     const float eps=1.0e-20;
     //
     fcomplex ur=(1.0f-dir)*(f3[ir-1]*(u[ir-1][0]+I*u[ir-1][1]))+dir*f3[ir]*(u[ir][0]+I*u[ir][1]);
@@ -963,13 +1043,36 @@ void solve(size_t mz, size_t mp, int nz, int const np, float u[mz][2],
 //     The self-starter.
 //
 static
-void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float dr, float dz, float k0, float rhob[mz], float alpw[mz], 
-        float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
-        float f1[mz], float f2[mz], float f3[mz], float u[mz][2], 
-        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
-        float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
-        fcomplex pd1[mp], fcomplex pd2[mp], 
-        int izsrf) {
+void selfs(size_t const mz,
+           size_t const mp,
+           int const    nz,
+           int const    np,
+           int const    ns,
+           int const    iz,
+           float const  zs,
+           float const  dr,
+           float const  dz,
+           float const  k0,
+           float        rhob[mz],
+           float        alpw[mz], 
+           float        alpb[mz],
+           fcomplex     ksq[mz],
+           fcomplex     ksqw[mz],
+           fcomplex     ksqb[mz],
+           float        f1[mz],
+           float        f2[mz],
+           float        f3[mz],
+           float        u[mz][2], 
+           float        r1[mp][mz][2],
+           float        r2[mp][mz][2],
+           float        r3[mp][mz][2],
+           float        s1[mp][mz][2],
+           float        s2[mp][mz][2],
+           float        s3[mp][mz][2],
+           fcomplex     pd1[mp],
+           fcomplex     pd2[mp], 
+           int const    izsrf
+          ) {
     //
     //     Conditions for the delta function.
     //
@@ -985,7 +1088,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
     //
     pd1[0]=0.0;
     pd2[0]=-1.0;
-    matrc(mz, mp, nz, 1, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    matrc(mz, mp, nz, 1, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
             f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
     solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
     solve(mz, mp, nz, 1, u, r1, r3, s1, s2, s3);
@@ -993,7 +1096,7 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
     //     Apply the operator [1-X]**2*[1+X]**[-1/4]*exp[I*k0*r*sqrt[1+X]].
     //
     epade(mp, np,ns,2,k0,dr,(float (*)[2])pd1,(float (*)[2])pd2);
-    matrc(mz, mp, nz, np, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    matrc(mz, mp, nz, np, iz, dz, k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
             f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, izsrf);
     solve(mz, mp, nz, np, u, r1, r3, s1, s2, s3);
     //
@@ -1004,18 +1107,61 @@ void selfs(size_t mz, size_t mp, int nz, int np, int ns, int iz, float zs, float
 //     Initialize the parameters, acoustic field, and matrices.
 //
 static
-void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fdline,
-        size_t mr, size_t mz, size_t mp,
-        int *nz, int *np, int *ns, int *mdr, int *ndr, int *ndz, int *iz,
-        int *nzplt, int *lz, int *ib, int *ir,
-        float *dir, float *dr, float *dz, float *omega, 
-        float *k0, float *r, float *rp, float *rs, float rb[mr], float zb[mr], float cw[mz], float cb[mz], float rhob[mz],
-        float attn[mz], float alpw[mz], float alpb[mz], fcomplex ksq[mz], fcomplex ksqw[mz], fcomplex ksqb[mz],
-        float f1[mz], float f2[mz], float f3[mz],
-        float u[mz][2], 
-        float r1[mp][mz][2], float r2[mp][mz][2], float r3[mp][mz][2],
-        float s1[mp][mz][2], float s2[mp][mz][2], float s3[mp][mz][2],
-        fcomplex pd1[mp], fcomplex pd2[mp], float tlg[mz], float rsrf[mr], float zsrf[mr], int *izsrf, int *isrf) {
+void setup(ramsurf_t const * const rsurf,
+           size_t * const          profl_index,
+           output_t * const        out,
+           FILE * const            fdline,
+           size_t const            mr,
+           size_t const            mz,
+           size_t const            mp,
+           int * const             nz,
+           int * const             np,
+           int * const             ns,
+           int * const             mdr,
+           int * const             ndr,
+           int * const             ndz,
+           int * const             iz,
+           int * const             nzplt,
+           int * const             lz,
+           int * const             ib,
+           int * const             ir,
+           float * const           dir,
+           float * const           dr,
+           float * const           dz,
+           float * const           omega, 
+           float * const           k0,
+           float * const           r,
+           float * const           rp,
+           float * const           rs,
+           float                   rb[mr],
+           float                   zb[mr],
+           float                   cw[mz],
+           float                   cb[mz],
+           float                   rhob[mz],
+           float                   attn[mz],
+           float                   alpw[mz],
+           float                   alpb[mz],
+           fcomplex                ksq[mz],
+           fcomplex                ksqw[mz],
+           fcomplex                ksqb[mz],
+           float                   f1[mz],
+           float                   f2[mz],
+           float                   f3[mz],
+           float                   u[mz][2], 
+           float                   r1[mp][mz][2],
+           float                   r2[mp][mz][2],
+           float                   r3[mp][mz][2],
+           float                   s1[mp][mz][2],
+           float                   s2[mp][mz][2],
+           float                   s3[mp][mz][2],
+           fcomplex                pd1[mp],
+           fcomplex                pd2[mp],
+           float                   tlg[mz],
+           float                   rsrf[mr],
+           float                   zsrf[mr],
+           int * const             izsrf,
+           int * const             isrf
+          ) {
     float zr,zmax,zmplt;
 
     zr = rsurf->zr;
@@ -1092,12 +1238,12 @@ void setup(ramsurf_t const* rsurf, size_t *profl_index,  output_t *out, FILE* fd
             alpw, alpb, (float (*)[2])ksqw, (float (*)[2])ksqb);
     selfs(mz, mp, *nz, *np, *ns, *iz, rsurf->zs, *dr, *dz, *k0, rhob, alpw, alpb, ksq, 
             ksqw, ksqb, f1, f2, f3, u, r1, r2, r3, s1, s2, s3, pd1, pd2, *izsrf);
-    outpt(out,  fdline,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, u, tlg);
+    outpt(out,  fdline,  mz, mdr, *ndr, *ndz, *nzplt, *lz, *ir, *dir, *r, f3, (float const (*)[2])u, tlg);
     //
     //     The propagation matrices.
     //
     epade(mp, *np, *ns, 1, *k0, *dr, (float (*)[2])pd1, (float (*)[2])pd2);
-    matrc(mz, mp, *nz, *np, *iz, *dz, *k0, rhob, alpw, alpb, (float (*)[2])ksq, (float (*)[2])ksqw, (float (*)[2])ksqb, 
+    matrc(mz, mp, *nz, *np, *iz, *dz, *k0, rhob, alpw, alpb, (float (*)[2])ksq, (float const (*)[2])ksqw, (float const (*)[2])ksqb, 
             f1, f2, f3, r1, r2, r3, s1, s2, s3, (float (*)[2])pd1, (float (*)[2])pd2, *izsrf);
     //
 }
@@ -1194,7 +1340,7 @@ int ramsurf(ramsurf_t const* rsurf, int * lz, float *** ogrid, FILE *fdline)
                     *r1, *r2, *r3, *s1, *s2, *s3, *pd1, *pd2, *rsrf, *zsrf, &izsrf, &isrf);
             solve(mz, mp, nz, np, *u, *r1, *r3, *s1, *s2, *s3);
             r=r+dr;
-            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, *lz, ir, dir, r, *f3, *u, *tlg);
+            outpt(&out, fdline, mz,  &mdr, ndr, ndz, nzplt, *lz, ir, dir, r, *f3, (float const (*)[2]) *u, *tlg);
         }
         if(errorCode)
             output_destroy(&out);
